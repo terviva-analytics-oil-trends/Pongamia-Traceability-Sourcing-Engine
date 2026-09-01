@@ -15,25 +15,30 @@
 <body class="bg-gray-100 font-sans text-gray-900">
 
   <!-- Main Header -->
-  <header class="bg-emerald-900 text-white p-4 shadow-md flex justify-between items-center flex-wrap gap-2">
+  <header class="bg-emerald-900 text-white p-3 px-4 shadow-md flex justify-between items-center flex-wrap gap-2">
     <div>
-      <h1 class="text-xl font-bold">Pongamia Field Procurement & Traceability Engine</h1>
-      <p class="text-xs text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka</p>
+      <h1 class="text-lg font-bold tracking-tight">Pongamia Field Procurement & Traceability Engine</h1>
+      <p class="text-[11px] text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka</p>
     </div>
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-2">
       <!-- Unit Selection -->
-      <div class="flex items-center bg-emerald-800 px-2 py-1 rounded text-xs space-x-1">
-        <label for="unitSelect" class="font-medium text-emerald-100">Unit:</label>
-        <select id="unitSelect" onchange="changeUnit(this.value)" class="bg-emerald-950 text-white font-bold px-2 py-0.5 rounded border border-emerald-600 focus:outline-none">
+      <div class="flex items-center bg-emerald-800 px-2 py-1 rounded text-xs space-x-1 border border-emerald-700">
+        <label for="unitSelect" class="font-medium text-emerald-100 text-[11px]">Unit:</label>
+        <select id="unitSelect" onchange="changeUnit(this.value)" class="bg-emerald-950 text-white font-bold px-1.5 py-0.5 rounded text-xs focus:outline-none">
           <option value="KG" selected>KG</option>
           <option value="MT">MT (Metric Tonnes)</option>
         </select>
       </div>
 
-      <button onclick="fetchCloudLedger()" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-3 py-1.5 rounded text-white font-bold flex items-center space-x-1">
+      <!-- Compact Guide Modal Trigger -->
+      <button onclick="toggleGuideModal()" class="bg-emerald-800 hover:bg-emerald-700 border border-emerald-600 text-xs px-2.5 py-1.5 rounded text-emerald-100 font-bold flex items-center space-x-1">
+        <span>ℹ️ Guide</span>
+      </button>
+
+      <button onclick="fetchCloudLedger()" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-2.5 py-1.5 rounded text-white font-bold flex items-center space-x-1">
         <span>🔄 Sync Team GRNs</span>
       </button>
-      <button onclick="clearAllLogs()" class="bg-red-700 hover:bg-red-800 text-xs px-2.5 py-1.5 rounded text-white">Clear Cache</button>
+      <button onclick="clearAllLogs()" class="bg-red-700 hover:bg-red-800 text-xs px-2 py-1.5 rounded text-white font-medium">Clear Cache</button>
     </div>
   </header>
 
@@ -46,26 +51,46 @@
     </div>
   </div>
 
+  <!-- Compact Guide Modal -->
+  <div id="guideModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full mx-4 max-h-[90vh] overflow-y-auto p-5 border border-emerald-200">
+      <div class="flex justify-between items-center border-b pb-2 mb-3">
+        <h3 class="text-sm font-bold text-emerald-900 flex items-center space-x-1">
+          <span>ℹ️ System Quick Operational Guide</span>
+        </h3>
+        <button onclick="toggleGuideModal()" class="text-gray-400 hover:text-gray-700 text-base font-bold">✕</button>
+      </div>
+      <div class="space-y-3 text-xs text-gray-700 leading-relaxed">
+        <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+          <h4 class="font-bold text-emerald-900 uppercase mb-1">Tab 1: Log Sourcing Transaction</h4>
+          <ul class="list-disc pl-4 space-y-1 text-[11px]">
+            <li><strong>Master CSV:</strong> Load deduplicated survey CSV file (Yield auto-set to 3kg/tree).</li>
+            <li><strong>Header Entry:</strong> Enter Vendor, GRN (auto-UPPERCASE), Total Qty, Date, Location, Staff Name.</li>
+            <li><strong>Proximity Search:</strong> Input Vendor Lat/Lng, set radius (1-100 km), click <em>Find Villages</em>.</li>
+            <li><strong>Allocation & Undo:</strong> Allocate per village or click <em>⚡ Add All Entered</em>. Multiple additions to same village merge automatically into 1 row. Click & type in staged box to edit live.</li>
+            <li><strong>0 Capacity Display:</strong> Fully sourced villages ($0\text{ KG}$ remaining) remain visible in table.</li>
+            <li><strong>Reset:</strong> Click <em>🧹 Reset Form</em> to prepare for next truck while keeping CSV attached.</li>
+          </ul>
+        </div>
+        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+          <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & PDF Reports</h4>
+          <ul class="list-disc pl-4 space-y-1 text-[11px]">
+            <li><strong>Single GRN Audit:</strong> Filter by Truck ID or Vendor. Identical village references aggregate automatically.</li>
+            <li><strong>Single A4 PDF:</strong> Download printable A4 certificate (max 15 lines/page).</li>
+            <li><strong>Consolidated Statement:</strong> Select Date Range at bottom of Tab 2 to download multi-GRN master statement.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="mt-4 text-right">
+        <button onclick="toggleGuideModal()" class="bg-emerald-800 text-white text-xs px-4 py-1.5 rounded font-bold hover:bg-emerald-900">Close Guide</button>
+      </div>
+    </div>
+  </div>
+
   <main class="max-w-7xl mx-auto p-4 space-y-6">
 
     <!-- TAB 1: LOG SOURCING TRANSACTION -->
     <section id="sec-log" class="space-y-6">
-      
-      <!-- System How It Works Collapsible Dropdown -->
-      <details class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-xs text-emerald-950 shadow-sm">
-        <summary class="font-bold cursor-pointer text-sm text-emerald-900 flex items-center justify-between">
-          <span>ℹ️ How This System Works (Field Sourcing & Traceability Workflow)</span>
-          <span class="text-xs text-emerald-700 font-normal">Click to Expand / Collapse</span>
-        </summary>
-        <div class="mt-3 space-y-2 border-t border-emerald-200 pt-2 leading-relaxed">
-          <p><strong>Step 1 (Master Setup):</strong> Load your deduplicated survey CSV file. System calculates village yield limits (&nbsp;Trees &times; 3 kg&nbsp;). Change unit between <strong>KG</strong> and <strong>MT</strong> at top right as needed.</p>
-          <p><strong>Step 2 (Transaction Header):</strong> Enter Vendor Name, Truck Arrival ID / GRN (auto-capitalized), Total Procured Weight, Date, Location, and Supervisor Name.</p>
-          <p><strong>Step 3 (Proximity Lookup):</strong> Enter Vendor / Town Latitude & Longitude, adjust radius slider (1 to 100 km), and click <em>Find Villages in Radius</em>.</p>
-          <p><strong>Step 4 (Auto-Consolidated Allocation & Zero Capacity Visibility):</strong> Allocate weights individually or via <em>⚡ Add All Entered</em>. Multiple additions to the same village automatically merge into one row. Fully allocated villages ($0\text{ KG}$ remaining) remain visible in search results.</p>
-          <p><strong>Step 5 (10% Soft Cap & Live Balance):</strong> A +10% negative deviation soft cap allows minor operational variance without blocking entries. If total assigned weight exceeds procurement, the balance indicator turns <span class="text-red-600 font-bold">RED</span>.</p>
-          <p><strong>Step 6 (Save & Reset for Next Entry):</strong> Click <em>Save Transaction & Sync to Cloud</em> to log data. Click <em>🧹 Reset Form for New Entry</em> to clear inputs for the next truck while keeping your master CSV dataset attached.</p>
-        </div>
-      </details>
 
       <!-- Master Upload & Yield Setting -->
       <div class="bg-white p-4 rounded-lg shadow space-y-3">
@@ -242,24 +267,9 @@
       </div>
     </section>
 
-    <!-- TAB 2: TRACEABILITY SEARCH & AUDIT (PDF EXPORT & CONSOLIDATED REPORT) -->
+    <!-- TAB 2: TRACEABILITY SEARCH & AUDIT -->
     <section id="sec-search" class="hidden space-y-6">
       
-      <!-- Tab 2 Specific How It Works -->
-      <details class="bg-blue-50 border border-blue-300 rounded-lg p-3 text-xs text-blue-950 shadow-sm">
-        <summary class="font-bold cursor-pointer text-sm text-blue-900 flex items-center justify-between">
-          <span>ℹ️ How Tab 2 (Single & Date-to-Date Consolidated PDF Reports) Works</span>
-          <span class="text-xs text-blue-700 font-normal">Click to Expand / Collapse</span>
-        </summary>
-        <div class="mt-3 space-y-2 border-t border-blue-200 pt-2 leading-relaxed">
-          <p><strong>1. Search & Filter:</strong> Select a <strong>Truck Arrival ID / GRN</strong> or <strong>Vendor Name</strong> from the dropdown menu to view all associated village allocations.</p>
-          <p><strong>2. Automatic Deduplication:</strong> Multiple entries under the same village/reference code are automatically summed up into a single line item.</p>
-          <p><strong>3. Printable A4 Layout (15 Lines Max per Page):</strong> The generated certificate strictly formats data into standard A4 document layout. Multi-page transactions break across pages cleanly.</p>
-          <p><strong>4. Export Options:</strong> Click <em>Download Selected Single A4 PDF</em> for official audit compliance or <em>Export All Logged Data (CSV)</em> to download the consolidated dataset in selected units (<span class="unitLbl">KG</span> / MT).</p>
-          <p><strong>5. Consolidated Date-to-Date PDF (Bottom of Tab):</strong> Located at the very bottom of Tab 2 for master statement generation.</p>
-        </div>
-      </details>
-
       <!-- Main Audit Filter Bar -->
       <div class="bg-white p-4 rounded-lg shadow space-y-4 no-print">
         <div class="flex justify-between items-center border-b pb-2">
@@ -394,6 +404,11 @@
       document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
     });
 
+    function toggleGuideModal() {
+      const modal = document.getElementById('guideModal');
+      modal.classList.toggle('hidden');
+    }
+
     function changeUnit(unit) {
       currentUnit = unit;
       document.querySelectorAll('.unitLbl').forEach(el => el.innerText = unit);
@@ -486,7 +501,6 @@
       return total;
     }
 
-    // RECALCULATE MASTER SOURCED/REMAINING CAPACITIES FROM CLOUD LOGS
     function recalculateMasterSourcedFromLogs() {
       if (!masterVillages || masterVillages.length === 0) return;
       masterVillages.forEach(v => {
@@ -555,7 +569,6 @@
         let remVal = Math.max(0, (v.remaining_kg * mult));
         let remDisp = remVal.toFixed(2);
 
-        // Highlight 0 capacity in bold gray/orange badge instead of hiding
         let remStyleClass = remVal <= 0 ? "text-gray-500 font-bold bg-gray-100 px-1.5 py-0.5 rounded" : "text-emerald-700 font-extrabold";
 
         let tr = document.createElement('tr');
@@ -786,7 +799,6 @@
       }
     }
 
-    // RESET FORM FUNCTION (DOES NOT REMOVE ATTACHED MASTER CSV)
     function resetTransactionForm() {
       document.getElementById('txVendor').value = '';
       document.getElementById('txTruck').value = '';
