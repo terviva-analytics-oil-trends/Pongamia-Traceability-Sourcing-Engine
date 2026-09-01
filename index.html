@@ -81,10 +81,10 @@
         <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
           <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & PDF Reports</h4>
           <ul class="list-disc pl-4 space-y-1 text-[11px]">
-            <li><strong>Single GRN Audit:</strong> Filter by Truck ID or Vendor. Identical village references aggregate automatically.</li>
-            <li><strong>A4 PDF Export:</strong> Downloads PDF named after GRN Number (e.g. `TAKA001_Traceability_Sheet_KG.pdf`). Each page includes 12 villages max, declaration, date, vendor signature, and staff name.</li>
-            <li><strong>Consolidated Date Range Report:</strong> Located at bottom of Tab 2. Select From/To dates to generate a single merged multi-page PDF statement containing all GRNs in chronological order.</li>
-            <li><strong>CSV Export:</strong> Download all logged transactions in selected unit (KG / MT).</li>
+            <li><strong>Independent Filters:</strong> Filter strictly by GRN Number OR Vendor Name.</li>
+            <li><strong>Vendor Sub-Tab Chips:</strong> When filtering by Vendor, toggle between their multiple GRNs instantly using interactive chips.</li>
+            <li><strong>A4 PDF Export:</strong> Compact formatting fits up to 20 villages per page. Each page includes full header, table, declaration, date, vendor signature line, and staff name.</li>
+            <li><strong>Consolidated PDF Reports:</strong> Download Date Range or Vendor-Specific combined multi-sheet PDF statements at the bottom of Tab 2.</li>
           </ul>
         </div>
       </div>
@@ -165,7 +165,7 @@
         </div>
       </div>
 
-      <!-- Currently Staged Allocations (Auto-Aggregated & Direct Inline Edit) -->
+      <!-- Currently Staged Allocations -->
       <div id="stagedSection" class="bg-amber-50 border border-amber-300 p-4 rounded-lg shadow space-y-3 hidden">
         <div class="flex justify-between items-center border-b border-amber-200 pb-2">
           <h3 class="text-xs font-bold text-amber-900 uppercase flex items-center space-x-2">
@@ -284,16 +284,22 @@
           <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team GRNs from Cloud</button>
         </div>
         
-        <!-- Individual Filter Controls -->
+        <!-- Decoupled Independent Filter Controls -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs text-gray-600 font-medium">Filter by Single Truck Arrival ID / GRN</label>
-            <select id="filterTruck" onchange="renderTraceabilitySheet()" class="border rounded p-2 text-sm w-full"><option value="">-- Select Truck ID --</option></select>
+            <label class="block text-xs text-gray-600 font-medium mb-1">Filter by Single Truck Arrival ID / GRN</label>
+            <select id="filterTruck" onchange="onGrnFilterChange(this.value)" class="border rounded p-2 text-sm w-full bg-white"><option value="">-- Select Truck ID --</option></select>
           </div>
           <div>
-            <label class="block text-xs text-gray-600 font-medium">Filter by Single Vendor Name</label>
-            <select id="filterVendor" onchange="renderTraceabilitySheet()" class="border rounded p-2 text-sm w-full"><option value="">-- Select Vendor --</option></select>
+            <label class="block text-xs text-gray-600 font-medium mb-1">Filter by Single Vendor Name</label>
+            <select id="filterVendor" onchange="onVendorFilterChange(this.value)" class="border rounded p-2 text-sm w-full bg-white"><option value="">-- Select Vendor --</option></select>
           </div>
+        </div>
+
+        <!-- Vendor GRN Navigation Sub-Tabs / Chips Bar -->
+        <div id="vendorGrnToggleBar" class="hidden bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 flex items-center space-x-2 flex-wrap">
+          <span class="text-xs font-bold text-emerald-900 uppercase">Vendor Transactions:</span>
+          <div id="grnChipContainer" class="flex space-x-2 flex-wrap"></div>
         </div>
 
         <div class="flex space-x-3 pt-1">
@@ -339,7 +345,7 @@
 
         <p class="text-[10px] italic text-gray-600 mb-8">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
 
-        <!-- Clean Signature Block without Watermark -->
+        <!-- Clean Signature Block -->
         <div class="flex justify-between items-end text-xs pt-4 border-t border-gray-300">
           <div>
             <p><strong>Place, Date:</strong> <span id="pdfPlaceDate">-</span></p>
@@ -352,25 +358,47 @@
         </div>
       </div>
 
-      <!-- CONSOLIDATED DATE-TO-DATE REPORT GENERATOR (AT BOTTOM OF TAB 2) -->
-      <div class="border bg-purple-50 p-4 rounded-lg border-purple-200 shadow space-y-3 no-print max-w-4xl mx-auto mt-8">
-        <h3 class="text-xs font-bold text-purple-900 uppercase">📄 CONSOLIDATED DATE-TO-DATE REPORT GENERATOR (STATEMENT STYLE)</h3>
-        <p class="text-[11px] text-purple-700">Select a date range to generate a combined multi-page PDF statement containing all logged GRNs in chronological order.</p>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-          <div>
-            <label class="block text-[11px] text-purple-800 font-semibold">From Date</label>
-            <input type="date" id="pdfFromDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
-          </div>
-          <div>
-            <label class="block text-[11px] text-purple-800 font-semibold">To Date</label>
-            <input type="date" id="pdfToDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
-          </div>
-          <div class="md:col-span-2">
-            <button onclick="downloadConsolidatedPdf()" class="w-full bg-purple-800 hover:bg-purple-900 text-white text-xs px-4 py-2.5 rounded font-bold shadow flex justify-center items-center space-x-1">
-              <span>📄 Download Consolidated PDF Report (Date Range)</span>
+      <!-- CONSOLIDATED REPORT GENERATOR BOXES -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 no-print max-w-4xl mx-auto mt-8">
+        
+        <!-- Box 1: Date Range Consolidated Generator -->
+        <div class="border bg-purple-50 p-4 rounded-lg border-purple-200 shadow space-y-3">
+          <h3 class="text-xs font-bold text-purple-900 uppercase">📄 DATE RANGE CONSOLIDATED REPORT</h3>
+          <p class="text-[11px] text-purple-700">Generates a multi-page PDF combining all GRNs in chronological order within date limits.</p>
+          <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] text-purple-800 font-semibold">From Date</label>
+                <input type="date" id="pdfFromDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
+              </div>
+              <div>
+                <label class="block text-[10px] text-purple-800 font-semibold">To Date</label>
+                <input type="date" id="pdfToDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
+              </div>
+            </div>
+            <button onclick="downloadConsolidatedPdf()" class="w-full bg-purple-800 hover:bg-purple-900 text-white text-xs px-3 py-2 rounded font-bold shadow">
+              📄 Download Date Range PDF
             </button>
           </div>
         </div>
+
+        <!-- Box 2: Vendor Consolidated Generator -->
+        <div class="border bg-blue-50 p-4 rounded-lg border-blue-200 shadow space-y-3">
+          <h3 class="text-xs font-bold text-blue-900 uppercase">📄 VENDOR BATCH CONSOLIDATED REPORT</h3>
+          <p class="text-[11px] text-blue-700">Generates a single multi-page PDF combining all GRNs for a selected vendor.</p>
+          <div class="space-y-2">
+            <div>
+              <label class="block text-[10px] text-blue-800 font-semibold">Select Vendor</label>
+              <select id="filterConsolidatedVendor" class="border border-blue-300 rounded p-1.5 text-xs w-full bg-white">
+                <option value="">-- Select Vendor --</option>
+              </select>
+            </div>
+            <button onclick="downloadVendorConsolidatedPdf()" class="w-full bg-blue-800 hover:bg-blue-900 text-white text-xs px-3 py-2 rounded font-bold shadow">
+              📄 Download Vendor Master PDF
+            </button>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -398,6 +426,9 @@
     let currentFilteredVillages = [];
     let activeTxItems = [];
     let currentUnit = 'KG';
+
+    let currentVendorGrns = [];
+    let activeVendorGrnIndex = 0;
 
     document.addEventListener('DOMContentLoaded', () => {
       const savedWebhook = localStorage.getItem('pongamia_webhook');
@@ -924,25 +955,81 @@
     function populateSearchDropdowns() {
       const truckSel = document.getElementById('filterTruck');
       const vendorSel = document.getElementById('filterVendor');
+      const consVendorSel = document.getElementById('filterConsolidatedVendor');
       
       truckSel.innerHTML = '<option value="">-- Select Truck ID --</option>';
       vendorSel.innerHTML = '<option value="">-- Select Vendor --</option>';
+      consVendorSel.innerHTML = '<option value="">-- Select Vendor --</option>';
 
       let trucks = [...new Set(loggedTransactions.map(t => t.truck_id))].sort();
       let vendors = [...new Set(loggedTransactions.map(t => t.vendor_name))].sort();
 
       trucks.forEach(t => { truckSel.innerHTML += `<option value="${t}">${t}</option>`; });
-      vendors.forEach(v => { vendorSel.innerHTML += `<option value="${v}">${v}</option>`; });
+      vendors.forEach(v => { 
+        vendorSel.innerHTML += `<option value="${v}">${v}</option>`; 
+        consVendorSel.innerHTML += `<option value="${v}">${v}</option>`;
+      });
+    }
+
+    // INDEPENDENT FILTER HANDLERS
+    function onGrnFilterChange(truckVal) {
+      document.getElementById('filterVendor').value = ""; // Clear vendor dropdown
+      document.getElementById('vendorGrnToggleBar').classList.add('hidden'); // Hide chips
+
+      if (!truckVal) return;
+      renderTraceabilitySheetForGrn(truckVal);
+    }
+
+    function onVendorFilterChange(vendorVal) {
+      document.getElementById('filterTruck').value = ""; // Clear GRN dropdown
+
+      if (!vendorVal) {
+        document.getElementById('vendorGrnToggleBar').classList.add('hidden');
+        return;
+      }
+
+      // Find all GRNs under this vendor
+      let vendorTxs = loggedTransactions.filter(t => t.vendor_name === vendorVal);
+      currentVendorGrns = [...new Set(vendorTxs.map(t => t.truck_id))].sort();
+
+      if (currentVendorGrns.length === 0) return;
+
+      activeVendorGrnIndex = 0;
+      renderVendorGrnChips();
+      renderTraceabilitySheetForGrn(currentVendorGrns[0]);
+    }
+
+    function renderVendorGrnChips() {
+      const bar = document.getElementById('vendorGrnToggleBar');
+      const container = document.getElementById('grnChipContainer');
+      bar.classList.remove('hidden');
+
+      container.innerHTML = currentVendorGrns.map((grn, idx) => `
+        <button onclick="switchVendorGrnChip(${idx})" class="px-3 py-1 rounded text-xs font-bold transition-all shadow-sm ${idx === activeVendorGrnIndex ? 'bg-emerald-800 text-white ring-2 ring-emerald-600' : 'bg-white text-emerald-900 hover:bg-emerald-100 border border-emerald-300'}">
+          GRN: ${grn} (${idx + 1}/${currentVendorGrns.length})
+        </button>
+      `).join('');
+    }
+
+    function switchVendorGrnChip(idx) {
+      activeVendorGrnIndex = idx;
+      renderVendorGrnChips();
+      renderTraceabilitySheetForGrn(currentVendorGrns[idx]);
     }
 
     function renderTraceabilitySheet() {
       const truckVal = document.getElementById('filterTruck').value;
       const vendorVal = document.getElementById('filterVendor').value;
 
-      let filtered = loggedTransactions.filter(t => {
-        return (!truckVal || t.truck_id === truckVal) && (!vendorVal || t.vendor_name === vendorVal);
-      });
+      if (truckVal) {
+        renderTraceabilitySheetForGrn(truckVal);
+      } else if (vendorVal && currentVendorGrns.length > 0) {
+        renderTraceabilitySheetForGrn(currentVendorGrns[activeVendorGrnIndex]);
+      }
+    }
 
+    function renderTraceabilitySheetForGrn(grnId) {
+      let filtered = loggedTransactions.filter(t => t.truck_id === grnId);
       if (filtered.length === 0) return;
 
       let first = filtered[0];
@@ -989,46 +1076,46 @@
       document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
     }
 
-    // HELPER FUNCTION: GENERATES EXACT FLEXBOX SINGLE PAGE HTML (PREVENTS OVERFLOW & TRUNCATION)
+    // HELPER FUNCTION: GENERATES EXACT FLEXBOX SINGLE PAGE HTML (20 VILLAGES PER PAGE MAX)
     function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages) {
       let rowsHtml = '';
       pageItems.forEach(i => {
         let dispQty = (i.allocated_kg * unitMultiplier()).toLocaleString(undefined, {maximumFractionDigits: 2});
         rowsHtml += `
           <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="border-right: 1px solid #111827; padding: 6px; font-family: monospace; font-size: 11px;">${i.ref_number}</td>
-            <td style="border-right: 1px solid #111827; padding: 6px; font-weight: bold; font-size: 11px;">${i.village_name}</td>
-            <td style="border-right: 1px solid #111827; padding: 6px; font-size: 11px;">${i.block}</td>
-            <td style="padding: 6px; text-align: right; font-weight: bold; font-size: 11px;">${dispQty}</td>
+            <td style="border-right: 1px solid #111827; padding: 3px 6px; font-family: monospace; font-size: 10px;">${i.ref_number}</td>
+            <td style="border-right: 1px solid #111827; padding: 3px 6px; font-weight: bold; font-size: 10px;">${i.village_name}</td>
+            <td style="border-right: 1px solid #111827; padding: 3px 6px; font-size: 10px;">${i.block}</td>
+            <td style="padding: 3px 6px; text-align: right; font-weight: bold; font-size: 10px;">${dispQty}</td>
           </tr>
         `;
       });
 
       return `
-        <div style="height: 1000px; display: flex; flex-direction: column; justify-content: space-between; padding: 32px; box-sizing: border-box; background-color: #ffffff; color: #000000; page-break-after: always; margin: 0;">
+        <div style="height: 1000px; display: flex; flex-direction: column; justify-content: space-between; padding: 24px; box-sizing: border-box; background-color: #ffffff; color: #000000; page-break-after: always; margin: 0;">
           <div>
-            <div style="text-align: center; font-weight: bold; font-size: 16px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 16px; text-transform: uppercase;">
+            <div style="text-align: center; font-weight: bold; font-size: 15px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase;">
               Traceability Sheet
             </div>
             
-            <div style="border: 1px solid #111827; margin-bottom: 16px; font-size: 12px;">
+            <div style="border: 1px solid #111827; margin-bottom: 12px; font-size: 11px;">
               <div style="display: flex; border-bottom: 1px solid #111827;">
-                <div style="width: 33.33%; padding: 6px 8px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
-                <div style="width: 66.66%; padding: 6px 8px;">${first.vendor_name || '-'}</div>
+                <div style="width: 33.33%; padding: 4px 6px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
+                <div style="width: 66.66%; padding: 4px 6px;">${first.vendor_name || '-'}</div>
               </div>
               <div style="display: flex;">
-                <div style="width: 33.33%; padding: 6px 8px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
-                <div style="width: 66.66%; padding: 6px 8px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
+                <div style="width: 33.33%; padding: 4px 6px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
+                <div style="width: 66.66%; padding: 4px 6px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
               </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #111827; font-size: 11px; margin-bottom: 12px;">
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #111827; font-size: 10px; margin-bottom: 8px;">
               <thead>
                 <tr style="background-color: #f3f4f6; border-bottom: 1px solid #111827;">
-                  <th style="border-right: 1px solid #111827; padding: 6px; text-align: left;">Ref Number</th>
-                  <th style="border-right: 1px solid #111827; padding: 6px; text-align: left;">Village Name</th>
-                  <th style="border-right: 1px solid #111827; padding: 6px; text-align: left;">Block</th>
-                  <th style="padding: 6px; text-align: right;">Qty (in ${currentUnit})</th>
+                  <th style="border-right: 1px solid #111827; padding: 5px; text-align: left;">Ref Number</th>
+                  <th style="border-right: 1px solid #111827; padding: 5px; text-align: left;">Village Name</th>
+                  <th style="border-right: 1px solid #111827; padding: 5px; text-align: left;">Block</th>
+                  <th style="padding: 5px; text-align: right;">Qty (in ${currentUnit})</th>
                 </tr>
               </thead>
               <tbody>
@@ -1036,26 +1123,26 @@
               </tbody>
               <tfoot>
                 <tr style="border-top: 2px solid #111827; font-weight: bold;">
-                  <td colspan="3" style="padding: 6px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase;">Total Qty (in ${currentUnit})</td>
-                  <td style="padding: 6px; text-align: right;">${totalDisp} ${currentUnit}</td>
+                  <td colspan="3" style="padding: 5px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase;">Total Qty (in ${currentUnit})</td>
+                  <td style="padding: 5px; text-align: right;">${totalDisp} ${currentUnit}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
           <div>
-            <p style="font-size: 10px; font-style: italic; color: #4b5563; margin-bottom: 20px;">
+            <p style="font-size: 9px; font-style: italic; color: #4b5563; margin-bottom: 16px;">
               I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.
             </p>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 12px; border-top: 1px solid #d1d5db;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; padding-top: 8px; border-top: 1px solid #d1d5db;">
               <div>
                 <p><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
               </div>
               <div style="text-align: center;">
-                <div style="height: 40px;"></div>
-                <div style="width: 192px; border-top: 1px solid #111827; padding-top: 4px; font-weight: bold;">Signature of Vendor</div>
-                <div style="font-size: 10px; color: #6b7280; margin-top: 4px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
+                <div style="height: 36px;"></div>
+                <div style="width: 180px; border-top: 1px solid #111827; padding-top: 2px; font-weight: bold;">Signature of Vendor</div>
+                <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
               </div>
             </div>
           </div>
@@ -1063,19 +1150,21 @@
       `;
     }
 
-    // MULTI-PAGE SINGLE GRN PDF EXPORT (MAX 12 VILLAGES PER PAGE, ZERO OVERFLOW)
+    // MULTI-PAGE SINGLE GRN PDF EXPORT
     async function exportToPdf() {
-      const truckVal = document.getElementById('filterTruck').value;
-      const vendorVal = document.getElementById('filterVendor').value;
+      let activeGrnId = document.getElementById('filterTruck').value;
+      if (!activeGrnId && currentVendorGrns.length > 0) {
+        activeGrnId = currentVendorGrns[activeVendorGrnIndex];
+      }
 
-      let filtered = loggedTransactions.filter(t => {
-        return (!truckVal || t.truck_id === truckVal) && (!vendorVal || t.vendor_name === vendorVal);
-      });
-
-      if (filtered.length === 0) {
+      if (!activeGrnId) {
         alert("Please select a Truck ID or Vendor first to generate PDF.");
         return;
       }
+
+      let filtered = loggedTransactions.filter(t => t.truck_id === activeGrnId);
+
+      if (filtered.length === 0) return;
 
       let first = filtered[0];
       const grnNumber = first.truck_id || 'GRN_Report';
@@ -1099,7 +1188,7 @@
       allItems.forEach(i => totalQtyKg += i.allocated_kg);
       const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
 
-      const pageSize = 12; // 12 villages max per page guarantees zero vertical overflow
+      const pageSize = 20; // 20 villages per page fits 25+ items in 2 pages easily
       const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
       const pdfContainer = document.getElementById('pdfContainer');
@@ -1125,11 +1214,11 @@
       try {
         await html2pdf().set(opt).from(pdfContainer).save();
       } finally {
-        pdfContainer.innerHTML = originalScreenHtml; // Restore screen view
+        renderTraceabilitySheet(); // Restore single screen view
       }
     }
 
-    // CONSOLIDATED DATE-TO-DATE PDF GENERATOR (MERGES ALL MATCHING GRNs INTO 1 MASTER PDF)
+    // CONSOLIDATED DATE-TO-DATE PDF GENERATOR
     async function downloadConsolidatedPdf() {
       const fromDate = document.getElementById('pdfFromDate').value;
       const toDate = document.getElementById('pdfToDate').value;
@@ -1176,7 +1265,7 @@
         allItems.forEach(i => totalQtyKg += i.allocated_kg);
         const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
 
-        const pageSize = 12; // 12 villages max per page
+        const pageSize = 20;
         const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
         for (let p = 0; p < totalPages; p++) {
@@ -1199,7 +1288,75 @@
       try {
         await html2pdf().set(opt).from(pdfContainer).save();
       } finally {
-        pdfContainer.innerHTML = originalScreenHtml; // Restore screen view
+        renderTraceabilitySheet();
+      }
+    }
+
+    // CONSOLIDATED VENDOR-SPECIFIC PDF GENERATOR
+    async function downloadVendorConsolidatedPdf() {
+      const selectedVendor = document.getElementById('filterConsolidatedVendor').value;
+
+      if (!selectedVendor) {
+        alert("Please select a vendor first.");
+        return;
+      }
+
+      let filtered = loggedTransactions.filter(t => t.vendor_name === selectedVendor);
+
+      if (filtered.length === 0) {
+        alert(`No logged transactions found for vendor: ${selectedVendor}.`);
+        return;
+      }
+
+      filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
+
+      const pdfContainer = document.getElementById('pdfContainer');
+      const mult = unitMultiplier();
+
+      let multiPageHtml = '';
+
+      filtered.forEach((tx) => {
+        const itemMap = {};
+        let totalQtyKg = 0;
+
+        if (tx.items && Array.isArray(tx.items)) {
+          tx.items.forEach(i => {
+            const key = i.ref_number || i.village_id;
+            if (!itemMap[key]) {
+              itemMap[key] = { ...i, allocated_kg: 0 };
+            }
+            itemMap[key].allocated_kg += i.allocated_kg;
+          });
+        }
+
+        const allItems = Object.values(itemMap);
+        allItems.forEach(i => totalQtyKg += i.allocated_kg);
+        const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+        const pageSize = 20;
+        const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
+
+        for (let p = 0; p < totalPages; p++) {
+          const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
+          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages);
+        }
+      });
+
+      pdfContainer.innerHTML = multiPageHtml;
+
+      const opt = {
+        margin:       [0.2, 0.2, 0.2, 0.2],
+        filename:     `Consolidated_Vendor_Report_${selectedVendor.replace(/\s+/g, '_')}_${currentUnit}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      try {
+        await html2pdf().set(opt).from(pdfContainer).save();
+      } finally {
+        renderTraceabilitySheet();
       }
     }
 
@@ -1221,11 +1378,10 @@
           csv += `"${t.date}","${t.place}","${t.vendor_name}","${t.truck_id}","${t.logged_by}","${i.ref_number}","${i.village_name}","${i.block}",${dispQty}\n`;
         });
       });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const a = document.getElementById('a') || document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `All_Logged_Traceability_Data_${currentUnit}.csv`;
-      a.click();
+      const blob = document.createElement('a');
+      blob.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      blob.download = `All_Logged_Traceability_Data_${currentUnit}.csv`;
+      blob.click();
     }
 
     function saveWebhookUrl() {
