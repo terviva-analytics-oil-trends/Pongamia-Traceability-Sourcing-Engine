@@ -9,6 +9,7 @@
   <style>
     .tab-active { border-bottom: 3px solid #047857; color: #047857; font-weight: bold; }
     @media print { .no-print { display: none !important; } }
+    .grn-page-break { page-break-before: always; }
   </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-900">
@@ -58,13 +59,11 @@
         </summary>
         <div class="mt-3 space-y-2 border-t border-emerald-200 pt-2 leading-relaxed">
           <p><strong>Step 1 (Master Setup):</strong> Load your deduplicated survey CSV file. System calculates village yield limits (&nbsp;Trees &times; 3 kg&nbsp;). Change unit between <strong>KG</strong> and <strong>MT</strong> at top right as needed.</p>
-          <p><strong>Step 2 (Transaction Header):</strong> Enter Vendor Name, Truck Arrival ID / GRN, Total Procured Weight, Date, Location, and Supervisor Name.</p>
+          <p><strong>Step 2 (Transaction Header):</strong> Enter Vendor Name, Truck Arrival ID / GRN (auto-capitalized), Total Procured Weight, Date, Location, and Supervisor Name.</p>
           <p><strong>Step 3 (Proximity Lookup):</strong> Enter Vendor / Town Latitude & Longitude, adjust radius slider (1 to 100 km), and click <em>Find Villages in Radius</em>.</p>
-          <p><strong>Step 4 (Flexible Allocation):</strong> 
-            Allocate weights to nearby villages using either <strong>Add (individual village)</strong> or type quantities across multiple villages and click <strong>⚡ Add All Entered</strong> at once.
-          </p>
+          <p><strong>Step 4 (Flexible Allocation & Undo):</strong> Allocate weights to nearby villages individually or via <em>⚡ Add All Entered</em>. If an error is made, click <strong>🗑️ Remove</strong> in the staged items table to undo and restore capacity.</p>
           <p><strong>Step 5 (10% Soft Cap & Live Balance):</strong> A +10% negative deviation soft cap allows minor operational variance without blocking entries. If total assigned weight exceeds procurement, the balance indicator turns <span class="text-red-600 font-bold">RED</span>.</p>
-          <p><strong>Step 6 (Save & Cloud Sync):</strong> Click <em>Save Transaction</em> at the top or bottom of the table to instantly append data to your central Google Sheet across all supervisors' devices.</p>
+          <p><strong>Step 6 (Save & Cloud Sync):</strong> Click <em>Save Transaction</em> to instantly append data to your central Google Sheet across all supervisors' devices.</p>
         </div>
       </details>
 
@@ -96,7 +95,7 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600">Truck Arrival ID / GRN</label>
-            <input type="text" id="txTruck" placeholder="e.g. TAKA001" class="border rounded p-2 text-sm w-full">
+            <input type="text" id="txTruck" placeholder="e.g. TAKA001" oninput="this.value = this.value.toUpperCase();" class="border rounded p-2 text-sm w-full uppercase font-mono font-bold">
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600">Total Procured Qty (<span class="unitLbl">KG</span>)</label>
@@ -125,6 +124,32 @@
             <span class="text-xs text-gray-400 block">UNALLOCATED BALANCE TO ASSIGN</span>
             <span class="text-xl font-extrabold text-emerald-400" id="cntUnallocated">0 <span class="unitLbl">KG</span></span>
           </div>
+        </div>
+      </div>
+
+      <!-- Currently Staged Allocations (Undo / Delete Section) -->
+      <div id="stagedSection" class="bg-amber-50 border border-amber-300 p-4 rounded-lg shadow space-y-3 hidden">
+        <div class="flex justify-between items-center border-b border-amber-200 pb-2">
+          <h3 class="text-xs font-bold text-amber-900 uppercase flex items-center space-x-2">
+            <span>📌 Currently Staged Allocations for this Transaction</span>
+            <span id="stagedBadge" class="bg-amber-200 text-amber-800 text-[10px] px-2 py-0.5 rounded-full">0 Items</span>
+          </h3>
+          <button onclick="clearAllStaged()" class="text-xs text-red-700 font-bold hover:underline">Clear All Staged</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-amber-100 text-amber-800 uppercase">
+              <tr>
+                <th class="p-2">Ref No</th>
+                <th class="p-2">Village Name</th>
+                <th class="p-2">Block</th>
+                <th class="p-2 text-right">Allocated Qty (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2 text-center">Action (Undo)</th>
+              </tr>
+            </thead>
+            <tbody id="stagedTableBody" class="divide-y divide-amber-200">
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -206,45 +231,69 @@
       </div>
     </section>
 
-    <!-- TAB 2: TRACEABILITY SEARCH & AUDIT (PDF EXPORT) -->
+    <!-- TAB 2: TRACEABILITY SEARCH & AUDIT (PDF EXPORT & CONSOLIDATED REPORT) -->
     <section id="sec-search" class="hidden space-y-6">
       
       <!-- Tab 2 Specific How It Works -->
       <details class="bg-blue-50 border border-blue-300 rounded-lg p-3 text-xs text-blue-950 shadow-sm">
         <summary class="font-bold cursor-pointer text-sm text-blue-900 flex items-center justify-between">
-          <span>ℹ️ How Tab 2 (Traceability Audit & PDF Generation) Works</span>
+          <span>ℹ️ How Tab 2 (Single & Date-to-Date Consolidated PDF Reports) Works</span>
           <span class="text-xs text-blue-700 font-normal">Click to Expand / Collapse</span>
         </summary>
         <div class="mt-3 space-y-2 border-t border-blue-200 pt-2 leading-relaxed">
-          <p><strong>1. Search & Filter:</strong> Select a <strong>Truck Arrival ID / GRN</strong> or <strong>Vendor Name</strong> from the dropdown menu to immediately view all associated village allocations.</p>
-          <p><strong>2. Printable A4 Layout (15 Lines Max per Page):</strong> The generated certificate strictly formats data into standard A4 document layout. If a transaction contains more than 15 villages, it automatically breaks across multiple pages cleanly.</p>
-          <p><strong>3. Vendor Signature & Supervisor Logging:</strong> Form includes a clean Vendor Signature line alongside supervisor logging details at the bottom of the page.</p>
-          <p><strong>4. Export Options:</strong> Click <em>Download A4 PDF Certificate</em> for official audit compliance or <em>Export All Logged Data (CSV)</em> to download the entire consolidated dataset in selected units (<span class="unitLbl">KG</span> / MT).</p>
+          <p><strong>1. Single GRN Search & Download:</strong> Select a specific <strong>Truck Arrival ID / GRN</strong> or <strong>Vendor Name</strong> from the dropdown to view and download an individual A4 certificate.</p>
+          <p><strong>2. Consolidated Date-to-Date Download (Bank Statement Style):</strong> Set a <strong>From Date</strong> and <strong>To Date</strong>. Clicking <em>📄 Download Consolidated PDF Report</em> will generate a merged master PDF containing all GRNs in chronological order by Date and GRN Number.</p>
+          <p><strong>3. Multi-Page Handling:</strong> Every individual GRN formatted within the merged report respects max 15 lines per page and cleanly breaks across pages.</p>
+          <p><strong>4. Dynamic Units & CSV Export:</strong> All PDF exports and global CSV downloads automatically format in your selected unit (<span class="unitLbl">KG</span> / MT).</p>
         </div>
       </details>
 
-      <div class="bg-white p-4 rounded-lg shadow space-y-3 no-print">
-        <div class="flex justify-between items-center">
-          <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability Search</h2>
+      <div class="bg-white p-4 rounded-lg shadow space-y-4 no-print">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability & Audit Center</h2>
           <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team GRNs from Cloud</button>
         </div>
+        
+        <!-- Individual Filter Controls -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs text-gray-600">Filter by Truck Arrival ID / GRN</label>
+            <label class="block text-xs text-gray-600 font-medium">Filter by Single Truck Arrival ID / GRN</label>
             <select id="filterTruck" onchange="renderTraceabilitySheet()" class="border rounded p-2 text-sm w-full"><option value="">-- Select Truck ID --</option></select>
           </div>
           <div>
-            <label class="block text-xs text-gray-600">Filter by Vendor Name</label>
+            <label class="block text-xs text-gray-600 font-medium">Filter by Single Vendor Name</label>
             <select id="filterVendor" onchange="renderTraceabilitySheet()" class="border rounded p-2 text-sm w-full"><option value="">-- Select Vendor --</option></select>
           </div>
         </div>
-        <div class="flex space-x-3 pt-2">
-          <button onclick="exportToPdf()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-semibold">Download A4 PDF Certificate</button>
+
+        <div class="flex space-x-3 pt-1">
+          <button onclick="exportToPdf()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-semibold">Download Selected Single A4 PDF</button>
           <button onclick="exportLoggedCsv()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded font-semibold">Export All Logged Data (CSV)</button>
         </div>
+
+        <!-- Date-to-Date Consolidated PDF Download Section -->
+        <div class="border-t pt-3 mt-2 bg-purple-50 p-3 rounded-lg border border-purple-200">
+          <h3 class="text-xs font-bold text-purple-900 uppercase mb-2">📄 Consolidated Date-to-Date PDF Generator (Statement Style)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label class="block text-[11px] text-purple-800 font-semibold">From Date</label>
+              <input type="date" id="pdfFromDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
+            </div>
+            <div>
+              <label class="block text-[11px] text-purple-800 font-semibold">To Date</label>
+              <input type="date" id="pdfToDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
+            </div>
+            <div class="md:col-span-2">
+              <button onclick="downloadConsolidatedPdf()" class="w-full bg-purple-800 hover:bg-purple-900 text-white text-xs px-4 py-2 rounded font-bold shadow flex justify-center items-center space-x-1">
+                <span>📄 Download Consolidated PDF Report (Date Range)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Printable A4 Certificate Container -->
+      <!-- Printable Single A4 Certificate Container -->
       <div id="pdfContainer" class="bg-white p-8 rounded shadow max-w-4xl mx-auto border border-gray-300">
         <div class="text-center font-bold text-lg tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Traceability Sheet</div>
         
@@ -281,7 +330,7 @@
 
         <p class="text-[10px] italic text-gray-600 mb-8">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
 
-        <!-- Clean Signature Block without Image Placeholder Watermark -->
+        <!-- Clean Signature Block without Watermark -->
         <div class="flex justify-between items-end text-xs pt-4 border-t border-gray-300">
           <div>
             <p><strong>Place, Date:</strong> <span id="pdfPlaceDate">-</span></p>
@@ -293,6 +342,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Offscreen Container for Generating Merged Consolidated PDFs -->
+      <div id="consolidatedPdfContainer" class="hidden"></div>
     </section>
 
     <!-- TAB 3: CLOUD SYNC SETUP -->
@@ -333,6 +385,7 @@
       currentUnit = unit;
       document.querySelectorAll('.unitLbl').forEach(el => el.innerText = unit);
       renderVillageTable();
+      renderStagedTable();
       updateAllocationCounter();
       if (!document.getElementById('sec-search').classList.contains('hidden')) {
         renderTraceabilitySheet();
@@ -520,6 +573,8 @@
       v.sourced_kg += valKg;
       v.remaining_kg = v.max_cap_kg - v.sourced_kg;
       valInput.value = '';
+      
+      renderStagedTable();
       renderVillageTable();
       updateAllocationCounter();
     }
@@ -548,11 +603,77 @@
       });
 
       if (addedCount > 0) {
+        renderStagedTable();
         renderVillageTable();
         updateAllocationCounter();
         alert(`Successfully added allocations for ${addedCount} villages!`);
       } else {
         alert("No quantities were entered in the table fields.");
+      }
+    }
+
+    // STAGED TABLE RENDER & REMOVE (UNDO PROVISION)
+    function renderStagedTable() {
+      const sec = document.getElementById('stagedSection');
+      const tbody = document.getElementById('stagedTableBody');
+      const badge = document.getElementById('stagedBadge');
+
+      if (activeTxItems.length === 0) {
+        sec.classList.add('hidden');
+        tbody.innerHTML = '';
+        return;
+      }
+
+      sec.classList.remove('hidden');
+      badge.innerText = `${activeTxItems.length} Village(s)`;
+      tbody.innerHTML = '';
+      const mult = unitMultiplier();
+
+      activeTxItems.forEach((item, idx) => {
+        let dispQty = (item.allocated_kg * mult).toFixed(2);
+        let tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-2 font-mono">${item.ref_number}</td>
+          <td class="p-2 font-bold">${item.village_name}</td>
+          <td class="p-2">${item.block}</td>
+          <td class="p-2 text-right font-bold text-amber-900">${dispQty} ${currentUnit}</td>
+          <td class="p-2 text-center">
+            <button onclick="removeStagedItem(${idx})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-0.5 rounded font-bold shadow">🗑️ Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function removeStagedItem(idx) {
+      const item = activeTxItems[idx];
+      
+      // Restore capacities in master and filtered datasets
+      const vMaster = masterVillages.find(m => m.ref_number === item.ref_number);
+      if (vMaster) {
+        vMaster.sourced_kg -= item.allocated_kg;
+        vMaster.remaining_kg = vMaster.max_cap_kg - vMaster.sourced_kg;
+      }
+
+      const vFiltered = currentFilteredVillages.find(f => f.ref_number === item.ref_number);
+      if (vFiltered) {
+        vFiltered.sourced_kg -= item.allocated_kg;
+        vFiltered.remaining_kg = vFiltered.max_cap_kg - vFiltered.sourced_kg;
+      }
+
+      // Remove from active array
+      activeTxItems.splice(idx, 1);
+
+      renderStagedTable();
+      renderVillageTable();
+      updateAllocationCounter();
+    }
+
+    function clearAllStaged() {
+      if (confirm("Remove all staged allocations for this transaction?")) {
+        while (activeTxItems.length > 0) {
+          removeStagedItem(0);
+        }
       }
     }
 
@@ -587,7 +708,7 @@
 
     function saveCurrentTransaction() {
       const vendor = document.getElementById('txVendor').value;
-      const truck = document.getElementById('txTruck').value;
+      const truck = document.getElementById('txTruck').value.toUpperCase();
       const totalEntered = parseFloat(document.getElementById('txTotalQty').value);
 
       if (!vendor || !truck || isNaN(totalEntered) || activeTxItems.length === 0) {
@@ -615,6 +736,7 @@
 
       alert("Transaction saved and synced to cloud!");
       activeTxItems = [];
+      renderStagedTable();
       updateAllocationCounter();
     }
 
@@ -629,7 +751,7 @@
 
         const txMap = {};
         rows.forEach(r => {
-          const truckId = r.Truck_ID || r.truck_id || 'UNKNOWN';
+          const truckId = String(r.Truck_ID || r.truck_id || 'UNKNOWN').toUpperCase();
           if (!txMap[truckId]) {
             txMap[truckId] = {
               id: truckId,
@@ -668,8 +790,8 @@
       truckSel.innerHTML = '<option value="">-- Select Truck ID --</option>';
       vendorSel.innerHTML = '<option value="">-- Select Vendor --</option>';
 
-      let trucks = [...new Set(loggedTransactions.map(t => t.truck_id))];
-      let vendors = [...new Set(loggedTransactions.map(t => t.vendor_name))];
+      let trucks = [...new Set(loggedTransactions.map(t => t.truck_id))].sort();
+      let vendors = [...new Set(loggedTransactions.map(t => t.vendor_name))].sort();
 
       trucks.forEach(t => { truckSel.innerHTML += `<option value="${t}">${t}</option>`; });
       vendors.forEach(v => { vendorSel.innerHTML += `<option value="${v}">${v}</option>`; });
@@ -726,6 +848,113 @@
         pagebreak:    { mode: ['css', 'legacy'] }
       };
       html2pdf().set(opt).from(element).save();
+    }
+
+    // CONSOLIDATED DATE-TO-DATE PDF GENERATOR (BANK STATEMENT STYLE)
+    function downloadConsolidatedPdf() {
+      const fromDate = document.getElementById('pdfFromDate').value;
+      const toDate = document.getElementById('pdfToDate').value;
+
+      if (!fromDate || !toDate) {
+        alert("Please select both 'From Date' and 'To Date'.");
+        return;
+      }
+
+      let filtered = loggedTransactions.filter(t => {
+        if (!t.date) return false;
+        let d = t.date.substring(0, 10);
+        return d >= fromDate && d <= toDate;
+      });
+
+      if (filtered.length === 0) {
+        alert(`No logged transactions found between ${fromDate} and ${toDate}.`);
+        return;
+      }
+
+      // Sort chronologically by date ascending, then by Truck ID
+      filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
+
+      const container = document.getElementById('consolidatedPdfContainer');
+      container.innerHTML = '';
+      const mult = unitMultiplier();
+
+      filtered.forEach((tx, index) => {
+        let pageWrapper = document.createElement('div');
+        pageWrapper.className = index > 0 ? "grn-page-break p-6 bg-white" : "p-6 bg-white";
+        
+        let rowsHtml = '';
+        let totalQtyKg = 0;
+        tx.items.forEach(i => {
+          totalQtyKg += i.allocated_kg;
+          let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+          rowsHtml += `
+            <tr class="border-b border-gray-300">
+              <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
+              <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
+              <td class="border-r border-gray-800 p-2">${i.block}</td>
+              <td class="p-2 text-right font-bold">${dispQty}</td>
+            </tr>
+          `;
+        });
+
+        let totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+        pageWrapper.innerHTML = `
+          <div class="text-center font-bold text-base tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Pongamia Sourcing Traceability Certificate</div>
+          <div class="border border-gray-800 mb-4 text-xs">
+            <div class="flex border-b border-gray-800">
+              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Vendor Name</div>
+              <div class="w-2/3 p-2">${tx.vendor_name}</div>
+            </div>
+            <div class="flex border-b border-gray-800">
+              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Truck Arrival ID / GRN</div>
+              <div class="w-2/3 p-2 font-mono font-bold">${tx.truck_id}</div>
+            </div>
+            <div class="flex">
+              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Transaction Date & Place</div>
+              <div class="w-2/3 p-2">${tx.place}, ${tx.date}</div>
+            </div>
+          </div>
+          <table class="w-full border-collapse border border-gray-800 text-xs mb-4">
+            <thead>
+              <tr class="bg-gray-100 border-b border-gray-800">
+                <th class="border-r border-gray-800 p-2 text-left">Ref Number</th>
+                <th class="border-r border-gray-800 p-2 text-left">Village Name</th>
+                <th class="border-r border-gray-800 p-2 text-left">Block</th>
+                <th class="p-2 text-right">Qty (in ${currentUnit})</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+            <tfoot>
+              <tr class="border-t border-gray-800 font-bold">
+                <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in ${currentUnit})</td>
+                <td class="p-2 text-right">${totalDisp} ${currentUnit}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <p class="text-[9px] italic text-gray-600 mb-6">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
+          <div class="flex justify-between items-end text-xs pt-2 border-t border-gray-300">
+            <div><p><strong>Date:</strong> ${tx.date}</p></div>
+            <div class="text-center">
+              <div class="h-10"></div>
+              <div class="w-44 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
+              <div class="text-[9px] text-gray-500 mt-0.5">Logged By: ${tx.logged_by}</div>
+            </div>
+          </div>
+        `;
+        container.appendChild(pageWrapper);
+      });
+
+      const opt = {
+        margin:       [0.4, 0.4, 0.4, 0.4],
+        filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      html2pdf().set(opt).from(container).save();
     }
 
     function exportLoggedCsv() {
