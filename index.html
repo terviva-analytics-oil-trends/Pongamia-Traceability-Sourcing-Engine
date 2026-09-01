@@ -82,8 +82,8 @@
           <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & PDF Reports</h4>
           <ul class="list-disc pl-4 space-y-1 text-[11px]">
             <li><strong>Independent Filters:</strong> Filter strictly by GRN Number OR Vendor Name.</li>
-            <li><strong>Vendor Sub-Tab Chips:</strong> When filtering by Vendor, toggle between their multiple GRNs instantly using interactive chips.</li>
-            <li><strong>A4 PDF Export:</strong> Compact formatting fits up to 20 villages per page. Each page includes full header, table, declaration, date, vendor signature line, and staff name.</li>
+            <li><strong>Delete GRN:</strong> Click <em>🗑️ Delete Selected GRN</em> to permanently delete a specific transaction without wiping device cache.</li>
+            <li><strong>High-Legibility PDF:</strong> Font size increased to 13px–14px for print readability. 14 villages max per page prevents clipping.</li>
             <li><strong>Consolidated PDF Reports:</strong> Download Date Range or Vendor-Specific combined multi-sheet PDF statements at the bottom of Tab 2.</li>
           </ul>
         </div>
@@ -302,8 +302,12 @@
           <div id="grnChipContainer" class="flex space-x-2 flex-wrap"></div>
         </div>
 
-        <div class="flex space-x-3 pt-1">
+        <!-- Toolbar Buttons (Includes Delete Selected GRN) -->
+        <div class="flex space-x-3 pt-1 flex-wrap gap-y-2">
           <button onclick="exportToPdf()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-semibold">Download Selected A4 PDF</button>
+          <button onclick="deleteSelectedGrn()" class="bg-red-700 hover:bg-red-800 text-white text-xs px-4 py-2 rounded font-semibold flex items-center space-x-1">
+            <span>🗑️ Delete Selected GRN</span>
+          </button>
           <button onclick="exportLoggedCsv()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded font-semibold">Export All Logged Data (CSV)</button>
         </div>
       </div>
@@ -988,7 +992,6 @@
         return;
       }
 
-      // Find all GRNs under this vendor
       let vendorTxs = loggedTransactions.filter(t => t.vendor_name === vendorVal);
       currentVendorGrns = [...new Set(vendorTxs.map(t => t.truck_id))].sort();
 
@@ -1076,73 +1079,111 @@
       document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
     }
 
-    // HELPER FUNCTION: GENERATES EXACT FLEXBOX SINGLE PAGE HTML (20 VILLAGES PER PAGE MAX)
+    // DELETE SPECIFIC GRN TRANSACTION
+    function deleteSelectedGrn() {
+      let activeGrnId = document.getElementById('filterTruck').value;
+      if (!activeGrnId && currentVendorGrns.length > 0) {
+        activeGrnId = currentVendorGrns[activeVendorGrnIndex];
+      }
+
+      if (!activeGrnId) {
+        alert("Please select a GRN / Truck Arrival ID to delete.");
+        return;
+      }
+
+      const confirmDelete = confirm(`⚠️ Are you sure you want to permanently delete GRN '${activeGrnId}'?\n\nThis will remove all village allocations under this GRN and restore their available capacities.`);
+      if (!confirmDelete) return;
+
+      // 1. Remove transaction from local array
+      loggedTransactions = loggedTransactions.filter(t => t.truck_id !== activeGrnId);
+      localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+
+      // 2. Recalculate capacity limits
+      recalculateMasterSourcedFromLogs();
+      populateSearchDropdowns();
+
+      // 3. Clear current Tab 2 view
+      document.getElementById('filterTruck').value = "";
+      document.getElementById('filterVendor').value = "";
+      document.getElementById('vendorGrnToggleBar').classList.add('hidden');
+
+      document.getElementById('pdfVendorName').innerText = '-';
+      document.getElementById('pdfTruckId').innerText = '-';
+      document.getElementById('pdfPlaceDate').innerText = '-';
+      document.getElementById('pdfLoggedBy').innerText = '-';
+      document.getElementById('pdfTableBody').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Select a Truck ID or Vendor above to render certificate.</td></tr>`;
+      document.getElementById('pdfTotalQty').innerText = '0';
+
+      alert(`GRN '${activeGrnId}' deleted successfully!`);
+    }
+
+    // HIGH-LEGIBILITY FLEXBOX PAGE BUILDER (FONT SIZE 13px-14px, 14 VILLAGES MAX PER PAGE)
     function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages) {
       let rowsHtml = '';
       pageItems.forEach(i => {
         let dispQty = (i.allocated_kg * unitMultiplier()).toLocaleString(undefined, {maximumFractionDigits: 2});
         rowsHtml += `
-          <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="border-right: 1px solid #111827; padding: 3px 6px; font-family: monospace; font-size: 10px;">${i.ref_number}</td>
-            <td style="border-right: 1px solid #111827; padding: 3px 6px; font-weight: bold; font-size: 10px;">${i.village_name}</td>
-            <td style="border-right: 1px solid #111827; padding: 3px 6px; font-size: 10px;">${i.block}</td>
-            <td style="padding: 3px 6px; text-align: right; font-weight: bold; font-size: 10px;">${dispQty}</td>
+          <tr style="border-bottom: 1px solid #111827;">
+            <td style="border-right: 1px solid #111827; padding: 6px 8px; font-family: monospace; font-size: 13px; font-weight: bold;">${i.ref_number}</td>
+            <td style="border-right: 1px solid #111827; padding: 6px 8px; font-weight: bold; font-size: 13px;">${i.village_name}</td>
+            <td style="border-right: 1px solid #111827; padding: 6px 8px; font-size: 13px; font-weight: 500;">${i.block}</td>
+            <td style="padding: 6px 8px; text-align: right; font-weight: bold; font-size: 13px;">${dispQty}</td>
           </tr>
         `;
       });
 
       return `
-        <div style="height: 1000px; display: flex; flex-direction: column; justify-content: space-between; padding: 24px; box-sizing: border-box; background-color: #ffffff; color: #000000; page-break-after: always; margin: 0;">
+        <div style="width: 794px; min-height: 1050px; max-height: 1080px; display: flex; flex-direction: column; justify-content: space-between; padding: 32px; box-sizing: border-box; background-color: #ffffff; color: #000000; page-break-after: always; break-after: page; margin: 0 auto 20px auto; border: 1px solid #d1d5db;">
           <div>
-            <div style="text-align: center; font-weight: bold; font-size: 15px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase;">
+            <div style="text-align: center; font-weight: bold; font-size: 18px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 16px; text-transform: uppercase;">
               Traceability Sheet
             </div>
             
-            <div style="border: 1px solid #111827; margin-bottom: 12px; font-size: 11px;">
+            <div style="border: 1px solid #111827; margin-bottom: 16px; font-size: 13px;">
               <div style="display: flex; border-bottom: 1px solid #111827;">
-                <div style="width: 33.33%; padding: 4px 6px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
-                <div style="width: 66.66%; padding: 4px 6px;">${first.vendor_name || '-'}</div>
+                <div style="width: 33.33%; padding: 6px 8px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
+                <div style="width: 66.66%; padding: 6px 8px; font-weight: 600;">${first.vendor_name || '-'}</div>
               </div>
               <div style="display: flex;">
-                <div style="width: 33.33%; padding: 4px 6px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
-                <div style="width: 66.66%; padding: 4px 6px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
+                <div style="width: 33.33%; padding: 6px 8px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
+                <div style="width: 66.66%; padding: 6px 8px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
               </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #111827; font-size: 10px; margin-bottom: 8px;">
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #111827; font-size: 13px; margin-bottom: 12px;">
               <thead>
-                <tr style="background-color: #f3f4f6; border-bottom: 1px solid #111827;">
-                  <th style="border-right: 1px solid #111827; padding: 5px; text-align: left;">Ref Number</th>
-                  <th style="border-right: 1px solid #111827; padding: 5px; text-align: left;">Village Name</th>
-                  <th style="border-right: 1px solid #111827; padding: 5px; text-align: left;">Block</th>
-                  <th style="padding: 5px; text-align: right;">Qty (in ${currentUnit})</th>
+                <tr style="background-color: #f3f4f6; border-bottom: 1.5px solid #111827;">
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 13px;">Ref Number</th>
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 13px;">Village Name</th>
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 13px;">Block</th>
+                  <th style="padding: 8px; text-align: right; font-size: 13px;">Qty (in ${currentUnit})</th>
                 </tr>
               </thead>
               <tbody>
                 ${rowsHtml}
               </tbody>
               <tfoot>
-                <tr style="border-top: 2px solid #111827; font-weight: bold;">
-                  <td colspan="3" style="padding: 5px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase;">Total Qty (in ${currentUnit})</td>
-                  <td style="padding: 5px; text-align: right;">${totalDisp} ${currentUnit}</td>
+                <tr style="border-top: 2px solid #111827; font-weight: bold; background-color: #ffffff;">
+                  <td colspan="3" style="padding: 8px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase; font-size: 13px;">Total Qty (in ${currentUnit})</td>
+                  <td style="padding: 8px; text-align: right; font-size: 13px;">${totalDisp} ${currentUnit}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
           <div>
-            <p style="font-size: 9px; font-style: italic; color: #4b5563; margin-bottom: 16px;">
+            <p style="font-size: 10.5px; font-style: italic; color: #374151; margin-bottom: 20px;">
               I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.
             </p>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; padding-top: 8px; border-top: 1px solid #d1d5db;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 12px; border-top: 1px solid #111827;">
               <div>
-                <p><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
+                <p style="font-size: 12px;"><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
               </div>
               <div style="text-align: center;">
-                <div style="height: 36px;"></div>
-                <div style="width: 180px; border-top: 1px solid #111827; padding-top: 2px; font-weight: bold;">Signature of Vendor</div>
-                <div style="font-size: 9px; color: #6b7280; margin-top: 2px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
+                <div style="height: 44px;"></div>
+                <div style="width: 200px; border-top: 1px solid #111827; padding-top: 4px; font-weight: bold; font-size: 12px;">Signature of Vendor</div>
+                <div style="font-size: 10px; color: #4b5563; margin-top: 2px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
               </div>
             </div>
           </div>
@@ -1188,7 +1229,7 @@
       allItems.forEach(i => totalQtyKg += i.allocated_kg);
       const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
 
-      const pageSize = 20; // 20 villages per page fits 25+ items in 2 pages easily
+      const pageSize = 14; // 14 villages max per page guarantees zero vertical overflow with 13-14px font
       const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
       const pdfContainer = document.getElementById('pdfContainer');
@@ -1265,7 +1306,7 @@
         allItems.forEach(i => totalQtyKg += i.allocated_kg);
         const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
 
-        const pageSize = 20;
+        const pageSize = 14;
         const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
         for (let p = 0; p < totalPages; p++) {
@@ -1333,7 +1374,7 @@
         allItems.forEach(i => totalQtyKg += i.allocated_kg);
         const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
 
-        const pageSize = 20;
+        const pageSize = 14;
         const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
         for (let p = 0; p < totalPages; p++) {
