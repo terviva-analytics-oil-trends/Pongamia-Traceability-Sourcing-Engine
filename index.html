@@ -9,7 +9,6 @@
   <style>
     .tab-active { border-bottom: 3px solid #047857; color: #047857; font-weight: bold; }
     @media print { .no-print { display: none !important; } }
-    .grn-page-break { page-break-before: always; break-before: page; }
   </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-900">
@@ -1104,8 +1103,8 @@
       alert(`Traceability Sheet '${activeGrnId}' deleted successfully!`);
     }
 
-    // STRICT UNIFORM A4 PAGE BUILDER (ZERO MARGIN WASTAGE & NATURAL HEIGHT FLOW)
-    function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages) {
+    // STRICT UNIFORM A4 PAGE BUILDER (ZERO MARGIN WASTAGE & NO PAGE OVERFLOW)
+    function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages, isFirstPageOverall = false) {
       let rowsHtml = '';
       pageItems.forEach(i => {
         let dispQty = (i.allocated_kg * unitMultiplier()).toLocaleString(undefined, {maximumFractionDigits: 2});
@@ -1119,8 +1118,10 @@
         `;
       });
 
+      const breakStyle = isFirstPageOverall ? '' : 'page-break-before: always; break-before: page;';
+
       return `
-        <div class="grn-page-break" style="width: 720px; padding: 20px; box-sizing: border-box; background-color: #ffffff; color: #000000; margin: 0 auto; page-break-after: always; break-after: page;">
+        <div style="width: 720px; min-height: 1000px; padding: 20px; box-sizing: border-box; background-color: #ffffff; color: #000000; ${breakStyle} margin: 0 auto; border: 1px solid #d1d5db;">
           <div>
             <div style="text-align: center; font-weight: bold; font-size: 17px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase;">
               Traceability Sheet
@@ -1231,18 +1232,19 @@
       let multiPageHtml = '';
       for (let p = 0; p < totalPages; p++) {
         const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
-        multiPageHtml += buildSinglePageHtml(first, pageItems, totalDisp, p + 1, totalPages);
+        multiPageHtml += buildSinglePageHtml(first, pageItems, totalDisp, p + 1, totalPages, p === 0);
       }
 
       pdfContainer.innerHTML = multiPageHtml;
 
+      window.scrollTo(0, 0);
       const opt = {
-        margin:       [0.3, 0.3, 0.3, 0.3],
+        margin:       [0.2, 0.2, 0.2, 0.2],
         filename:     `${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'], before: '.grn-page-break' }
+        pagebreak:    { mode: ['css', 'legacy'] }
       };
 
       try {
@@ -1280,6 +1282,7 @@
       const mult = unitMultiplier();
 
       let multiPageHtml = '';
+      let isVeryFirstPage = true;
 
       filtered.forEach((tx) => {
         const itemMap = {};
@@ -1304,19 +1307,21 @@
 
         for (let p = 0; p < totalPages; p++) {
           const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
-          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages);
+          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages, isVeryFirstPage);
+          isVeryFirstPage = false;
         }
       });
 
       pdfContainer.innerHTML = multiPageHtml;
 
+      window.scrollTo(0, 0);
       const opt = {
-        margin:       [0.3, 0.3, 0.3, 0.3],
+        margin:       [0.2, 0.2, 0.2, 0.2],
         filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'], before: '.grn-page-break' }
+        pagebreak:    { mode: ['css', 'legacy'] }
       };
 
       try {
@@ -1348,6 +1353,7 @@
       const mult = unitMultiplier();
 
       let multiPageHtml = '';
+      let isVeryFirstPage = true;
 
       filtered.forEach((tx) => {
         const itemMap = {};
@@ -1372,19 +1378,21 @@
 
         for (let p = 0; p < totalPages; p++) {
           const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
-          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages);
+          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages, isVeryFirstPage);
+          isVeryFirstPage = false;
         }
       });
 
       pdfContainer.innerHTML = multiPageHtml;
 
+      window.scrollTo(0, 0);
       const opt = {
-        margin:       [0.3, 0.3, 0.3, 0.3],
+        margin:       [0.2, 0.2, 0.2, 0.2],
         filename:     `Consolidated_Vendor_Report_${selectedVendor.replace(/\s+/g, '_')}_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'], before: '.grn-page-break' }
+        pagebreak:    { mode: ['css', 'legacy'] }
       };
 
       try {
