@@ -9,16 +9,6 @@
   <style>
     .tab-active { border-bottom: 3px solid #047857; color: #047857; font-weight: bold; }
     @media print { .no-print { display: none !important; } }
-    .grn-page-break { page-break-before: always; }
-    
-    /* Offscreen Container for html2canvas Rendering (Prevents Blank PDFs) */
-    #pdfPrintMultiPageContainer {
-      position: absolute;
-      left: -9999px;
-      top: 0;
-      width: 800px;
-      background: white;
-    }
   </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-900">
@@ -355,7 +345,7 @@
         </div>
       </div>
 
-      <!-- CONSOLIDATED DATE-TO-DATE PDF GENERATOR (AT BOTTOM OF TAB 2) -->
+      <!-- CONSOLIDATED DATE-TO-DATE REPORT GENERATOR (AT BOTTOM OF TAB 2) -->
       <div class="border bg-purple-50 p-4 rounded-lg border-purple-200 shadow space-y-3 no-print max-w-4xl mx-auto mt-8">
         <h3 class="text-xs font-bold text-purple-900 uppercase">📄 CONSOLIDATED DATE-TO-DATE REPORT GENERATOR (STATEMENT STYLE)</h3>
         <p class="text-[11px] text-purple-700">Select a date range to generate a combined multi-page PDF statement containing all logged GRNs in chronological order.</p>
@@ -375,9 +365,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Offscreen Container for Generating Multi-Page PDFs (Positioned Offscreen without 'hidden' class) -->
-      <div id="pdfPrintMultiPageContainer"></div>
     </section>
 
     <!-- TAB 3: CLOUD SYNC SETUP -->
@@ -971,8 +958,8 @@
       document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
     }
 
-    // MULTI-PAGE SINGLE GRN PDF EXPORT
-    function exportToPdf() {
+    // MULTI-PAGE SINGLE GRN PDF EXPORT (INLINE STYLED, FIXED POSITION CAPTURE)
+    async function exportToPdf() {
       const truckVal = document.getElementById('filterTruck').value;
       const vendorVal = document.getElementById('filterVendor').value;
 
@@ -1010,8 +997,14 @@
       const pageSize = 15;
       const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
-      const container = document.getElementById('pdfPrintMultiPageContainer');
-      container.innerHTML = '';
+      const container = document.createElement('div');
+      container.id = 'tempPdfRenderContainer';
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = '800px';
+      container.style.zIndex = '-9999';
+      container.style.background = '#ffffff';
 
       for (let p = 0; p < totalPages; p++) {
         const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
@@ -1020,62 +1013,67 @@
         pageItems.forEach(i => {
           let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
           rowsHtml += `
-            <tr class="border-b border-gray-300">
-              <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
-              <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
-              <td class="border-r border-gray-800 p-2">${i.block}</td>
-              <td class="p-2 text-right font-bold">${dispQty}</td>
+            <tr style="border-bottom: 1px solid #d1d5db;">
+              <td style="border-right: 1px solid #111827; padding: 6px; font-family: monospace;">${i.ref_number}</td>
+              <td style="border-right: 1px solid #111827; padding: 6px; font-weight: bold;">${i.village_name}</td>
+              <td style="border-right: 1px solid #111827; padding: 6px;">${i.block}</td>
+              <td style="padding: 6px; text-align: right; font-weight: bold;">${dispQty}</td>
             </tr>
           `;
         });
 
         let pageWrapper = document.createElement('div');
-        pageWrapper.className = p > 0 ? "grn-page-break p-8 bg-white mb-6" : "p-8 bg-white mb-6";
+        pageWrapper.style.padding = '32px';
+        pageWrapper.style.backgroundColor = '#ffffff';
+        pageWrapper.style.color = '#000000';
+        if (p > 0) {
+          pageWrapper.style.pageBreakBefore = 'always';
+        }
 
         pageWrapper.innerHTML = `
-          <div class="text-center font-bold text-lg tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Traceability Sheet</div>
+          <div style="text-align: center; font-weight: bold; font-size: 18px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 16px; text-transform: uppercase;">Traceability Sheet</div>
           
-          <div class="border border-gray-800 mb-4 text-xs">
-            <div class="flex border-b border-gray-800">
-              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Vendor Name</div>
-              <div class="w-2/3 p-2">${first.vendor_name || '-'}</div>
+          <div style="border: 1px solid #111827; margin-bottom: 16px; font-size: 12px;">
+            <div style="display: flex; border-bottom: 1px solid #111827;">
+              <div style="width: 33.33%; padding: 8px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
+              <div style="width: 66.66%; padding: 8px;">${first.vendor_name || '-'}</div>
             </div>
-            <div class="flex">
-              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Truck Arrival ID / GRN</div>
-              <div class="w-2/3 p-2 font-mono font-bold">${first.truck_id || '-'}</div>
+            <div style="display: flex;">
+              <div style="width: 33.33%; padding: 8px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
+              <div style="width: 66.66%; padding: 8px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
             </div>
           </div>
 
-          <table class="w-full border-collapse border border-gray-800 text-xs mb-4">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #111827; font-size: 12px; margin-bottom: 16px;">
             <thead>
-              <tr class="bg-gray-100 border-b border-gray-800">
-                <th class="border-r border-gray-800 p-2 text-left">Ref Number</th>
-                <th class="border-r border-gray-800 p-2 text-left">Village Name</th>
-                <th class="border-r border-gray-800 p-2 text-left">Block</th>
-                <th class="p-2 text-right">Qty (in ${currentUnit})</th>
+              <tr style="background-color: #f3f4f6; border-bottom: 1px solid #111827;">
+                <th style="border-right: 1px solid #111827; padding: 8px; text-align: left;">Ref Number</th>
+                <th style="border-right: 1px solid #111827; padding: 8px; text-align: left;">Village Name</th>
+                <th style="border-right: 1px solid #111827; padding: 8px; text-align: left;">Block</th>
+                <th style="padding: 8px; text-align: right;">Qty (in ${currentUnit})</th>
               </tr>
             </thead>
             <tbody>
               ${rowsHtml}
             </tbody>
             <tfoot>
-              <tr class="border-t border-gray-800 font-bold">
-                <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in ${currentUnit})</td>
-                <td class="p-2 text-right">${totalDisp} ${currentUnit}</td>
+              <tr style="border-top: 2px solid #111827; font-weight: bold;">
+                <td colspan="3" style="padding: 8px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase;">Total Qty (in ${currentUnit})</td>
+                <td style="padding: 8px; text-align: right;">${totalDisp} ${currentUnit}</td>
               </tr>
             </tfoot>
           </table>
 
-          <p class="text-[10px] italic text-gray-600 mb-8">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
+          <p style="font-size: 10px; font-style: italic; color: #4b5563; margin-bottom: 32px;">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
 
-          <div class="flex justify-between items-end text-xs pt-4 border-t border-gray-300">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 16px; border-top: 1px solid #d1d5db;">
             <div>
               <p><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
             </div>
-            <div class="text-center">
-              <div class="h-12"></div>
-              <div class="w-48 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
-              <div class="text-[10px] text-gray-500 mt-1">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${p + 1} of ${totalPages})</div>
+            <div style="text-align: center;">
+              <div style="height: 48px;"></div>
+              <div style="width: 192px; border-top: 1px solid #111827; padding-top: 4px; font-weight: bold;">Signature of Vendor</div>
+              <div style="font-size: 10px; color: #6b7280; margin-top: 4px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${p + 1} of ${totalPages})</div>
             </div>
           </div>
         `;
@@ -1083,20 +1081,26 @@
         container.appendChild(pageWrapper);
       }
 
+      document.body.appendChild(container);
+
       const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
+        margin:       [0.3, 0.3, 0.3, 0.3],
         filename:     `${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 800 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
         pagebreak:    { mode: ['css', 'legacy'] }
       };
 
-      html2pdf().set(opt).from(container).save();
+      try {
+        await html2pdf().set(opt).from(container).save();
+      } finally {
+        document.body.removeChild(container);
+      }
     }
 
     // CONSOLIDATED DATE-TO-DATE PDF GENERATOR (MERGES ALL MATCHING GRNs INTO 1 FLOW)
-    function downloadConsolidatedPdf() {
+    async function downloadConsolidatedPdf() {
       const fromDate = document.getElementById('pdfFromDate').value;
       const toDate = document.getElementById('pdfToDate').value;
 
@@ -1118,14 +1122,22 @@
 
       filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
 
-      const container = document.getElementById('pdfPrintMultiPageContainer');
-      container.innerHTML = '';
       const mult = unitMultiplier();
+      const container = document.createElement('div');
+      container.id = 'tempConsolidatedContainer';
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = '800px';
+      container.style.zIndex = '-9999';
+      container.style.background = '#ffffff';
 
-      filtered.forEach((tx, txIdx) => {
+      let totalPageCount = 0;
+
+      filtered.forEach((tx) => {
         const itemMap = {};
         let totalQtyKg = 0;
-        
+
         if (tx.items && Array.isArray(tx.items)) {
           tx.items.forEach(i => {
             const key = i.ref_number || i.village_id;
@@ -1144,68 +1156,74 @@
         const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
 
         for (let p = 0; p < totalPages; p++) {
+          totalPageCount++;
           const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
           
           let rowsHtml = '';
           pageItems.forEach(i => {
             let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
             rowsHtml += `
-              <tr class="border-b border-gray-300">
-                <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
-                <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
-                <td class="border-r border-gray-800 p-2">${i.block}</td>
-                <td class="p-2 text-right font-bold">${dispQty}</td>
+              <tr style="border-bottom: 1px solid #d1d5db;">
+                <td style="border-right: 1px solid #111827; padding: 6px; font-family: monospace;">${i.ref_number}</td>
+                <td style="border-right: 1px solid #111827; padding: 6px; font-weight: bold;">${i.village_name}</td>
+                <td style="border-right: 1px solid #111827; padding: 6px;">${i.block}</td>
+                <td style="padding: 6px; text-align: right; font-weight: bold;">${dispQty}</td>
               </tr>
             `;
           });
 
           let pageWrapper = document.createElement('div');
-          pageWrapper.className = (txIdx > 0 || p > 0) ? "grn-page-break p-8 bg-white mb-6" : "p-8 bg-white mb-6";
+          pageWrapper.style.padding = '32px';
+          pageWrapper.style.backgroundColor = '#ffffff';
+          pageWrapper.style.color = '#000000';
+          if (totalPageCount > 1) {
+            pageWrapper.style.pageBreakBefore = 'always';
+          }
 
           pageWrapper.innerHTML = `
-            <div class="text-center font-bold text-base tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Pongamia Sourcing Traceability Certificate</div>
+            <div style="text-align: center; font-weight: bold; font-size: 16px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 16px; text-transform: uppercase;">Pongamia Sourcing Traceability Certificate</div>
             
-            <div class="border border-gray-800 mb-4 text-xs">
-              <div class="flex border-b border-gray-800">
-                <div class="w-1/3 p-2 font-bold border-r border-gray-800">Vendor Name</div>
-                <div class="w-2/3 p-2">${tx.vendor_name || '-'}</div>
+            <div style="border: 1px solid #111827; margin-bottom: 16px; font-size: 12px;">
+              <div style="display: flex; border-bottom: 1px solid #111827;">
+                <div style="width: 33.33%; padding: 8px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
+                <div style="width: 66.66%; padding: 8px;">${tx.vendor_name || '-'}</div>
               </div>
-              <div class="flex">
-                <div class="w-1/3 p-2 font-bold border-r border-gray-800">Truck Arrival ID / GRN</div>
-                <div class="w-2/3 p-2 font-mono font-bold">${tx.truck_id || '-'}</div>
+              <div style="display: flex;">
+                <div style="width: 33.33%; padding: 8px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
+                <div style="width: 66.66%; padding: 8px; font-family: monospace; font-weight: bold;">${tx.truck_id || '-'}</div>
               </div>
             </div>
 
-            <table class="w-full border-collapse border border-gray-800 text-xs mb-4">
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #111827; font-size: 12px; margin-bottom: 16px;">
               <thead>
-                <tr class="bg-gray-100 border-b border-gray-800">
-                  <th class="border-r border-gray-800 p-2 text-left">Ref Number</th>
-                  <th class="border-r border-gray-800 p-2 text-left">Village Name</th>
-                  <th class="border-r border-gray-800 p-2 text-left">Block</th>
-                  <th class="p-2 text-right">Qty (in ${currentUnit})</th>
+                <tr style="background-color: #f3f4f6; border-bottom: 1px solid #111827;">
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left;">Ref Number</th>
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left;">Village Name</th>
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left;">Block</th>
+                  <th style="padding: 8px; text-align: right;">Qty (in ${currentUnit})</th>
                 </tr>
               </thead>
               <tbody>
                 ${rowsHtml}
               </tbody>
               <tfoot>
-                <tr class="border-t border-gray-800 font-bold">
-                  <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in ${currentUnit})</td>
-                  <td class="p-2 text-right">${totalDisp} ${currentUnit}</td>
+                <tr style="border-top: 2px solid #111827; font-weight: bold;">
+                  <td colspan="3" style="padding: 8px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase;">Total Qty (in ${currentUnit})</td>
+                  <td style="padding: 8px; text-align: right;">${totalDisp} ${currentUnit}</td>
                 </tr>
               </tfoot>
             </table>
 
-            <p class="text-[10px] italic text-gray-600 mb-8">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
+            <p style="font-size: 10px; font-style: italic; color: #4b5563; margin-bottom: 32px;">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
 
-            <div class="flex justify-between items-end text-xs pt-4 border-t border-gray-300">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 16px; border-top: 1px solid #d1d5db;">
               <div>
                 <p><strong>Place, Date:</strong> ${tx.place || ''}, ${tx.date || ''}</p>
               </div>
-              <div class="text-center">
-                <div class="h-12"></div>
-                <div class="w-48 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
-                <div class="text-[10px] text-gray-500 mt-1">Logged By: ${tx.logged_by || 'Chethan H C'} (Page ${p + 1} of ${totalPages})</div>
+              <div style="text-align: center;">
+                <div style="height: 48px;"></div>
+                <div style="width: 192px; border-top: 1px solid #111827; padding-top: 4px; font-weight: bold;">Signature of Vendor</div>
+                <div style="font-size: 10px; color: #6b7280; margin-top: 4px;">Logged By: ${tx.logged_by || 'Chethan H C'} (Page ${p + 1} of ${totalPages})</div>
               </div>
             </div>
           `;
@@ -1214,16 +1232,22 @@
         }
       });
 
+      document.body.appendChild(container);
+
       const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
+        margin:       [0.3, 0.3, 0.3, 0.3],
         filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, windowWidth: 800 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
         pagebreak:    { mode: ['css', 'legacy'] }
       };
 
-      html2pdf().set(opt).from(container).save();
+      try {
+        await html2pdf().set(opt).from(container).save();
+      } finally {
+        document.body.removeChild(container);
+      }
     }
 
     function exportLoggedCsv() {
