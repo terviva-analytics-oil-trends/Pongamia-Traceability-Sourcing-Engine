@@ -41,7 +41,6 @@
         <span>ℹ️ Guide</span>
       </button>
 
-      <!-- Updated Header Button Wording -->
       <button onclick="fetchCloudLedger()" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-2.5 py-1.5 rounded text-white font-bold flex items-center space-x-1">
         <span>🔄 Sync Team Traceability Sheets</span>
       </button>
@@ -84,8 +83,8 @@
           <ul class="list-disc pl-4 space-y-1 text-[11px]">
             <li><strong>Independent Filters:</strong> Filter strictly by Truck Arrival ID / GRN OR Vendor Name.</li>
             <li><strong>Delete Traceability Sheet:</strong> Click <em>🗑️ Delete Selected Sheet</em> to permanently delete a specific transaction without wiping device cache.</li>
-            <li><strong>High-Legibility PDF:</strong> Font size increased to 13px–14px for print readability. 14 villages max per page prevents clipping.</li>
-            <li><strong>Consolidated PDF Reports:</strong> Download Date Range or Vendor-Specific combined multi-sheet PDF statements at the bottom of Tab 2.</li>
+            <li><strong>Strict Page Boundaries:</strong> Table columns are ratio-locked to guarantee `Qty` never gets clipped off on the right margin.</li>
+            <li><strong>Consolidated PDF Reports:</strong> Download Date Range or Vendor-Specific combined multi-sheet PDF statements at the bottom of Tab 2. Each GRN starts on a fresh page.</li>
           </ul>
         </div>
       </div>
@@ -282,8 +281,6 @@
       <div class="bg-white p-4 rounded-lg shadow space-y-4 no-print">
         <div class="flex justify-between items-center border-b pb-2">
           <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability & Audit Center</h2>
-          
-          <!-- Updated Tab 2 Button Wording -->
           <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team Traceability Sheets from Cloud</button>
         </div>
         
@@ -893,6 +890,7 @@
       updateAllocationCounter();
     }
 
+    // STRICT GOOGLE SHEETS CLOUD MIRROR (EXCLUSIVELY REPLACES LEDGER FROM CLOUD)
     async function fetchCloudLedger() {
       const url = localStorage.getItem('pongamia_webhook');
       if (!url) {
@@ -909,13 +907,7 @@
 
         const txMap = {};
 
-        loggedTransactions.forEach(t => {
-          if (t && t.truck_id) {
-            const key = String(t.truck_id).toUpperCase();
-            txMap[key] = { ...t };
-          }
-        });
-
+        // Build ledger exclusively from Google Sheets
         rows.forEach(r => {
           const truckId = String(r.Truck_ID || r.truck_id || 'UNKNOWN').toUpperCase();
           if (!txMap[truckId]) {
@@ -934,18 +926,14 @@
           const qty = parseFloat(r.Allocated_Qty_kg || r.allocated_kg || 0);
           const refNo = r.Ref_Number || r.ref_number || '';
           
-          let existingItem = txMap[truckId].items.find(i => i.ref_number === refNo);
-          if (existingItem) {
-            existingItem.allocated_kg = qty;
-          } else {
-            txMap[truckId].items.push({
-              ref_number: refNo,
-              village_id: r.Village_ID || r.village_id || '',
-              village_name: r.Village_Name || r.village_name || '',
-              block: r.Block || r.block || '',
-              allocated_kg: qty
-            });
-          }
+          txMap[truckId].items.push({
+            ref_number: refNo,
+            village_id: r.Village_ID || r.village_id || '',
+            village_name: r.Village_Name || r.village_name || '',
+            block: r.Block || r.block || '',
+            allocated_kg: qty
+          });
+          
           txMap[truckId].total_kg = txMap[truckId].items.reduce((a,b) => a + b.allocated_kg, 0);
         });
 
@@ -980,15 +968,15 @@
 
     // INDEPENDENT FILTER HANDLERS
     function onGrnFilterChange(truckVal) {
-      document.getElementById('filterVendor').value = ""; // Clear vendor dropdown
-      document.getElementById('vendorGrnToggleBar').classList.add('hidden'); // Hide chips
+      document.getElementById('filterVendor').value = "";
+      document.getElementById('vendorGrnToggleBar').classList.add('hidden');
 
       if (!truckVal) return;
       renderTraceabilitySheetForGrn(truckVal);
     }
 
     function onVendorFilterChange(vendorVal) {
-      document.getElementById('filterTruck').value = ""; // Clear GRN dropdown
+      document.getElementById('filterTruck').value = "";
 
       if (!vendorVal) {
         document.getElementById('vendorGrnToggleBar').classList.add('hidden');
@@ -1094,7 +1082,7 @@
         return;
       }
 
-      const confirmDelete = confirm(`⚠️ Are you sure you want to permanently delete GRN '${activeGrnId}'?\n\nThis will remove all village allocations under this GRN and restore their available capacities.`);
+      const confirmDelete = confirm(`⚠️ Are you sure you want to permanently delete Traceability Sheet '${activeGrnId}'?\n\nThis will remove all village allocations under this sheet and restore their available capacities.`);
       if (!confirmDelete) return;
 
       loggedTransactions = loggedTransactions.filter(t => t.truck_id !== activeGrnId);
@@ -1114,10 +1102,10 @@
       document.getElementById('pdfTableBody').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Select a Truck ID or Vendor above to render certificate.</td></tr>`;
       document.getElementById('pdfTotalQty').innerText = '0';
 
-      alert(`GRN '${activeGrnId}' deleted successfully!`);
+      alert(`Traceability Sheet '${activeGrnId}' deleted successfully!`);
     }
 
-    // STRICT HORIZONTAL RATIO-LOCKED A4 PAGE BUILDER (ZERO CLIPPING & FIXED WIDTH COLUMNS)
+    // STRICT HORIZONTAL RATIO-LOCKED A4 PAGE BUILDER
     function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages) {
       let rowsHtml = '';
       pageItems.forEach(i => {
