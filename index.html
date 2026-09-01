@@ -61,9 +61,9 @@
           <p><strong>Step 1 (Master Setup):</strong> Load your deduplicated survey CSV file. System calculates village yield limits (&nbsp;Trees &times; 3 kg&nbsp;). Change unit between <strong>KG</strong> and <strong>MT</strong> at top right as needed.</p>
           <p><strong>Step 2 (Transaction Header):</strong> Enter Vendor Name, Truck Arrival ID / GRN (auto-capitalized), Total Procured Weight, Date, Location, and Supervisor Name.</p>
           <p><strong>Step 3 (Proximity Lookup):</strong> Enter Vendor / Town Latitude & Longitude, adjust radius slider (1 to 100 km), and click <em>Find Villages in Radius</em>.</p>
-          <p><strong>Step 4 (Flexible Allocation & Inline Edit):</strong> Allocate weights individually or via <em>⚡ Add All Entered</em>. You can directly click and edit any number inside the staged table box to instantly update village capacity and unallocated counters live everywhere.</p>
+          <p><strong>Step 4 (Auto-Consolidated Allocation & Zero Capacity Visibility):</strong> Allocate weights individually or via <em>⚡ Add All Entered</em>. Multiple additions to the same village automatically merge into one row. Fully allocated villages ($0\text{ KG}$ remaining) remain visible in search results.</p>
           <p><strong>Step 5 (10% Soft Cap & Live Balance):</strong> A +10% negative deviation soft cap allows minor operational variance without blocking entries. If total assigned weight exceeds procurement, the balance indicator turns <span class="text-red-600 font-bold">RED</span>.</p>
-          <p><strong>Step 6 (Save & Cloud Sync):</strong> Click <em>Save Transaction</em> to instantly append data to your central Google Sheet across all supervisors' devices.</p>
+          <p><strong>Step 6 (Save & Reset for Next Entry):</strong> Click <em>Save Transaction & Sync to Cloud</em> to log data. Click <em>🧹 Reset Form for New Entry</em> to clear inputs for the next truck while keeping your master CSV dataset attached.</p>
         </div>
       </details>
 
@@ -87,7 +87,13 @@
 
       <!-- Transaction Header Form -->
       <div class="bg-white p-4 rounded-lg shadow space-y-4">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase">Transaction Header Details</h2>
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">Transaction Header Details</h2>
+          <button onclick="resetTransactionForm()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+            <span>🧹 Reset Form for New Entry</span>
+          </button>
+        </div>
+
         <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
             <label class="block text-xs font-medium text-gray-600">Vendor Name</label>
@@ -127,7 +133,7 @@
         </div>
       </div>
 
-      <!-- Currently Staged Allocations (Direct Inline Edit + Delete Provision) -->
+      <!-- Currently Staged Allocations (Auto-Aggregated & Direct Inline Edit) -->
       <div id="stagedSection" class="bg-amber-50 border border-amber-300 p-4 rounded-lg shadow space-y-3 hidden">
         <div class="flex justify-between items-center border-b border-amber-200 pb-2">
           <h3 class="text-xs font-bold text-amber-900 uppercase flex items-center space-x-2">
@@ -225,9 +231,14 @@
         </div>
       </div>
 
-      <!-- Bottom Save Button -->
-      <div class="flex justify-end">
-        <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-lg font-bold shadow text-sm">Save Transaction & Sync to Cloud</button>
+      <!-- Bottom Actions -->
+      <div class="flex justify-between items-center">
+        <button onclick="resetTransactionForm()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg font-bold text-xs shadow">
+          🧹 Reset Form for New Entry
+        </button>
+        <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-lg font-bold shadow text-sm">
+          Save Transaction & Sync to Cloud
+        </button>
       </div>
     </section>
 
@@ -241,11 +252,11 @@
           <span class="text-xs text-blue-700 font-normal">Click to Expand / Collapse</span>
         </summary>
         <div class="mt-3 space-y-2 border-t border-blue-200 pt-2 leading-relaxed">
-          <p><strong>1. Search & Filter:</strong> Select a <strong>Truck Arrival ID / GRN</strong> or <strong>Vendor Name</strong> from the dropdown menu to immediately view all associated village allocations.</p>
-          <p><strong>2. Printable A4 Layout (15 Lines Max per Page):</strong> The generated certificate strictly formats data into standard A4 document layout. If a transaction contains more than 15 villages, it automatically breaks across multiple pages cleanly.</p>
-          <p><strong>3. Vendor Signature & Supervisor Logging:</strong> Form includes a clean Vendor Signature line alongside supervisor logging details at the bottom of the page.</p>
-          <p><strong>4. Export Options:</strong> Click <em>Download Selected Single A4 PDF</em> for official audit compliance or <em>Export All Logged Data (CSV)</em> to download the entire consolidated dataset in selected units (<span class="unitLbl">KG</span> / MT).</p>
-          <p><strong>5. Consolidated Date-to-Date PDF (Bottom of Tab):</strong> Located at the very bottom of Tab 2 for occasional master statement generation.</p>
+          <p><strong>1. Search & Filter:</strong> Select a <strong>Truck Arrival ID / GRN</strong> or <strong>Vendor Name</strong> from the dropdown menu to view all associated village allocations.</p>
+          <p><strong>2. Automatic Deduplication:</strong> Multiple entries under the same village/reference code are automatically summed up into a single line item.</p>
+          <p><strong>3. Printable A4 Layout (15 Lines Max per Page):</strong> The generated certificate strictly formats data into standard A4 document layout. Multi-page transactions break across pages cleanly.</p>
+          <p><strong>4. Export Options:</strong> Click <em>Download Selected Single A4 PDF</em> for official audit compliance or <em>Export All Logged Data (CSV)</em> to download the consolidated dataset in selected units (<span class="unitLbl">KG</span> / MT).</p>
+          <p><strong>5. Consolidated Date-to-Date PDF (Bottom of Tab):</strong> Located at the very bottom of Tab 2 for master statement generation.</p>
         </div>
       </details>
 
@@ -285,7 +296,7 @@
           </div>
           <div class="flex">
             <div class="w-1/3 p-2 font-bold border-r border-gray-800 text-xs">Truck Arrival ID / GRN</div>
-            <div class="w-2/3 p-2 text-xs" id="pdfTruckId">-</div>
+            <div class="w-2/3 p-2 text-xs font-mono font-bold" id="pdfTruckId">-</div>
           </div>
         </div>
 
@@ -324,7 +335,7 @@
         </div>
       </div>
 
-      <!-- Consolidated Date-to-Date PDF Generator (REPOSITIONED TO VERY BOTTOM OF TAB 2) -->
+      <!-- Consolidated Date-to-Date PDF Generator (AT VERY BOTTOM OF TAB 2) -->
       <div class="border bg-purple-50 p-4 rounded-lg border-purple-200 shadow space-y-3 no-print max-w-4xl mx-auto mt-8">
         <h3 class="text-xs font-bold text-purple-900 uppercase">📄 CONSOLIDATED DATE-TO-DATE PDF GENERATOR (STATEMENT STYLE)</h3>
         <p class="text-[11px] text-purple-700">Select a date range to generate a combined multi-page PDF report containing all logged GRNs in chronological order.</p>
@@ -475,6 +486,26 @@
       return total;
     }
 
+    // RECALCULATE MASTER SOURCED/REMAINING CAPACITIES FROM CLOUD LOGS
+    function recalculateMasterSourcedFromLogs() {
+      if (!masterVillages || masterVillages.length === 0) return;
+      masterVillages.forEach(v => {
+        let sourcedKg = getSourcedFromLogs(v.ref_number);
+        v.sourced_kg = sourcedKg;
+        v.remaining_kg = v.max_cap_kg - sourcedKg;
+      });
+      if (currentFilteredVillages.length > 0) {
+        currentFilteredVillages.forEach(fv => {
+          let m = masterVillages.find(mv => mv.ref_number === fv.ref_number);
+          if (m) {
+            fv.sourced_kg = m.sourced_kg;
+            fv.remaining_kg = m.remaining_kg;
+          }
+        });
+        renderVillageTable();
+      }
+    }
+
     function haversine(lat1, lon1, lat2, lon2) {
       if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return 99999;
       const R = 6371;
@@ -521,7 +552,11 @@
         let maxCapDisp = (v.max_cap_kg * mult).toFixed(2);
         let maxPermittedDisp = ((v.max_cap_kg * 1.10) * mult).toFixed(2);
         let sourcedDisp = (v.sourced_kg * mult).toFixed(2);
-        let remDisp = Math.max(0, (v.remaining_kg * mult)).toFixed(2);
+        let remVal = Math.max(0, (v.remaining_kg * mult));
+        let remDisp = remVal.toFixed(2);
+
+        // Highlight 0 capacity in bold gray/orange badge instead of hiding
+        let remStyleClass = remVal <= 0 ? "text-gray-500 font-bold bg-gray-100 px-1.5 py-0.5 rounded" : "text-emerald-700 font-extrabold";
 
         let tr = document.createElement('tr');
         tr.className = "hover:bg-gray-50";
@@ -534,7 +569,7 @@
           <td class="p-2 font-bold">${maxCapDisp} ${currentUnit}</td>
           <td class="p-2 text-purple-700 font-bold">${maxPermittedDisp} ${currentUnit}</td>
           <td class="p-2 text-amber-700">${sourcedDisp} ${currentUnit}</td>
-          <td class="p-2 text-emerald-700 font-extrabold">${remDisp} ${currentUnit}</td>
+          <td class="p-2"><span class="${remStyleClass}">${remDisp} ${currentUnit}</span></td>
           <td class="p-2">
             <div class="flex space-x-1">
               <input type="number" step="any" id="alloc_${idx}" placeholder="${currentUnit}" class="border rounded p-1 w-20 text-xs">
@@ -564,13 +599,18 @@
         if (!confirmExceed) return;
       }
 
-      activeTxItems.push({
-        ref_number: v.ref_number,
-        village_id: v.village_id,
-        village_name: v.village_name,
-        block: v.block,
-        allocated_kg: valKg
-      });
+      let existing = activeTxItems.find(item => item.ref_number === v.ref_number);
+      if (existing) {
+        existing.allocated_kg += valKg;
+      } else {
+        activeTxItems.push({
+          ref_number: v.ref_number,
+          village_id: v.village_id,
+          village_name: v.village_name,
+          block: v.block,
+          allocated_kg: valKg
+        });
+      }
 
       v.sourced_kg += valKg;
       v.remaining_kg = v.max_cap_kg - v.sourced_kg;
@@ -589,13 +629,20 @@
           const valEntered = parseFloat(valInput.value);
           if (!isNaN(valEntered) && valEntered > 0) {
             const valKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
-            activeTxItems.push({
-              ref_number: v.ref_number,
-              village_id: v.village_id,
-              village_name: v.village_name,
-              block: v.block,
-              allocated_kg: valKg
-            });
+            
+            let existing = activeTxItems.find(item => item.ref_number === v.ref_number);
+            if (existing) {
+              existing.allocated_kg += valKg;
+            } else {
+              activeTxItems.push({
+                ref_number: v.ref_number,
+                village_id: v.village_id,
+                village_name: v.village_name,
+                block: v.block,
+                allocated_kg: valKg
+              });
+            }
+
             v.sourced_kg += valKg;
             v.remaining_kg = v.max_cap_kg - v.sourced_kg;
             valInput.value = '';
@@ -614,7 +661,6 @@
       }
     }
 
-    // STAGED TABLE RENDER & DIRECT INLINE EDITING (EVERYWHERE SYNC)
     function renderStagedTable() {
       const sec = document.getElementById('stagedSection');
       const tbody = document.getElementById('stagedTableBody');
@@ -653,7 +699,6 @@
       });
     }
 
-    // DIRECT INLINE EDITING LOGIC (UPDATES MASTER & NEARBY TABLES LIVE)
     function updateStagedItemQty(idx, newDispVal) {
       const item = activeTxItems[idx];
       if (!item) return;
@@ -664,24 +709,20 @@
       const newValKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
       const diffKg = newValKg - item.allocated_kg;
 
-      // Update capacities in master dataset
       const vMaster = masterVillages.find(m => m.ref_number === item.ref_number);
       if (vMaster) {
         vMaster.sourced_kg += diffKg;
         vMaster.remaining_kg = vMaster.max_cap_kg - vMaster.sourced_kg;
       }
 
-      // Update capacities in filtered dataset
       const vFiltered = currentFilteredVillages.find(f => f.ref_number === item.ref_number);
       if (vFiltered) {
         vFiltered.sourced_kg += diffKg;
         vFiltered.remaining_kg = vFiltered.max_cap_kg - vFiltered.sourced_kg;
       }
 
-      // Commit new allocation
       item.allocated_kg = newValKg;
 
-      // Sync UI elements live without losing focus
       renderVillageTable();
       updateAllocationCounter();
     }
@@ -743,6 +784,22 @@
         badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800";
         unallocText.className = "text-xl font-extrabold text-emerald-400";
       }
+    }
+
+    // RESET FORM FUNCTION (DOES NOT REMOVE ATTACHED MASTER CSV)
+    function resetTransactionForm() {
+      document.getElementById('txVendor').value = '';
+      document.getElementById('txTruck').value = '';
+      document.getElementById('txTotalQty').value = '';
+      document.getElementById('txPlace').value = '';
+      document.getElementById('txLoggedBy').value = 'Chethan H C';
+      document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
+      
+      activeTxItems = [];
+      renderStagedTable();
+      updateAllocationCounter();
+
+      alert("Form reset successfully! Master CSV dataset remains attached.");
     }
 
     function saveCurrentTransaction() {
@@ -816,6 +873,8 @@
 
         loggedTransactions = Object.values(txMap);
         localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+        
+        recalculateMasterSourcedFromLogs();
         populateSearchDropdowns();
       } catch (e) {
         console.error("Cloud fetch error:", e);
@@ -857,20 +916,34 @@
       let grantTotalKg = 0;
       const mult = unitMultiplier();
 
+      const itemMap = {};
       filtered.forEach(t => {
         t.items.forEach(i => {
-          grantTotalKg += i.allocated_kg;
-          let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
-          let tr = document.createElement('tr');
-          tr.className = "border-b border-gray-300";
-          tr.innerHTML = `
-            <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
-            <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
-            <td class="border-r border-gray-800 p-2">${i.block}</td>
-            <td class="p-2 text-right font-bold">${dispQty}</td>
-          `;
-          tbody.appendChild(tr);
+          const key = i.ref_number || i.village_id;
+          if (!itemMap[key]) {
+            itemMap[key] = {
+              ref_number: i.ref_number,
+              village_name: i.village_name,
+              block: i.block,
+              allocated_kg: 0
+            };
+          }
+          itemMap[key].allocated_kg += i.allocated_kg;
         });
+      });
+
+      Object.values(itemMap).forEach(i => {
+        grantTotalKg += i.allocated_kg;
+        let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+        let tr = document.createElement('tr');
+        tr.className = "border-b border-gray-300";
+        tr.innerHTML = `
+          <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
+          <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
+          <td class="border-r border-gray-800 p-2">${i.block}</td>
+          <td class="p-2 text-right font-bold">${dispQty}</td>
+        `;
+        tbody.appendChild(tr);
       });
 
       document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
@@ -921,7 +994,17 @@
         
         let rowsHtml = '';
         let totalQtyKg = 0;
+
+        const itemMap = {};
         tx.items.forEach(i => {
+          const key = i.ref_number || i.village_id;
+          if (!itemMap[key]) {
+            itemMap[key] = { ...i, allocated_kg: 0 };
+          }
+          itemMap[key].allocated_kg += i.allocated_kg;
+        });
+
+        Object.values(itemMap).forEach(i => {
           totalQtyKg += i.allocated_kg;
           let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
           rowsHtml += `
@@ -998,7 +1081,16 @@
       const mult = unitMultiplier();
       let csv = `Date,Place,Vendor_Name,Truck_ID,Logged_By,Ref_Number,Village_Name,Block,Allocated_Qty_${currentUnit}\n`;
       loggedTransactions.forEach(t => {
+        const itemMap = {};
         t.items.forEach(i => {
+          const key = i.ref_number || i.village_id;
+          if (!itemMap[key]) {
+            itemMap[key] = { ...i, allocated_kg: 0 };
+          }
+          itemMap[key].allocated_kg += i.allocated_kg;
+        });
+
+        Object.values(itemMap).forEach(i => {
           let dispQty = (i.allocated_kg * mult).toFixed(2);
           csv += `"${t.date}","${t.place}","${t.vendor_name}","${t.truck_id}","${t.logged_by}","${i.ref_number}","${i.village_name}","${i.block}",${dispQty}\n`;
         });
