@@ -76,8 +76,8 @@
           <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & PDF Reports</h4>
           <ul class="list-disc pl-4 space-y-1 text-[11px]">
             <li><strong>Single GRN Audit:</strong> Filter by Truck ID or Vendor. Identical village references aggregate automatically.</li>
-            <li><strong>Single A4 PDF:</strong> Download printable A4 certificate (max 15 lines/page).</li>
-            <li><strong>Consolidated Statement:</strong> Select Date Range at bottom of Tab 2 to download multi-GRN master statement.</li>
+            <li><strong>A4 PDF Export:</strong> Downloads PDF named after GRN Number (e.g. `TAKA001_Traceability_Sheet_KG.pdf`). Each page includes 15 villages max, declaration, date, vendor signature, and staff name.</li>
+            <li><strong>CSV Export:</strong> Download all logged transactions in selected unit (KG / MT).</li>
           </ul>
         </div>
       </div>
@@ -290,7 +290,7 @@
         </div>
 
         <div class="flex space-x-3 pt-1">
-          <button onclick="exportToPdf()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-semibold">Download Selected Single A4 PDF</button>
+          <button onclick="exportToPdf()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-semibold">Download Selected A4 PDF</button>
           <button onclick="exportLoggedCsv()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded font-semibold">Export All Logged Data (CSV)</button>
         </div>
       </div>
@@ -345,29 +345,8 @@
         </div>
       </div>
 
-      <!-- Consolidated Date-to-Date PDF Generator (AT VERY BOTTOM OF TAB 2) -->
-      <div class="border bg-purple-50 p-4 rounded-lg border-purple-200 shadow space-y-3 no-print max-w-4xl mx-auto mt-8">
-        <h3 class="text-xs font-bold text-purple-900 uppercase">📄 CONSOLIDATED DATE-TO-DATE PDF GENERATOR (STATEMENT STYLE)</h3>
-        <p class="text-[11px] text-purple-700">Select a date range to generate a combined multi-page PDF report containing all logged GRNs in chronological order.</p>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-          <div>
-            <label class="block text-[11px] text-purple-800 font-semibold">From Date</label>
-            <input type="date" id="pdfFromDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
-          </div>
-          <div>
-            <label class="block text-[11px] text-purple-800 font-semibold">To Date</label>
-            <input type="date" id="pdfToDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
-          </div>
-          <div class="md:col-span-2">
-            <button onclick="downloadConsolidatedPdf()" class="w-full bg-purple-800 hover:bg-purple-900 text-white text-xs px-4 py-2.5 rounded font-bold shadow flex justify-center items-center space-x-1">
-              <span>📄 Download Consolidated PDF Report (Date Range)</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Offscreen Container for Generating Merged Consolidated PDFs -->
-      <div id="consolidatedPdfContainer" class="hidden"></div>
+      <!-- Hidden Container for Offscreen Multi-Page Pagination Rendering -->
+      <div id="pdfPrintMultiPageContainer" class="hidden"></div>
     </section>
 
     <!-- TAB 3: CLOUD SYNC SETUP -->
@@ -961,63 +940,53 @@
       document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
     }
 
+    // MULTI-PAGE PDF GENERATOR: REPLICATES HEADER, DECLARATION, DATE & SIGNATURES ON EVERY PAGE
     function exportToPdf() {
-      const element = document.getElementById('pdfContainer');
-      const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
-        filename:     `Traceability_Sheet_${currentUnit}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
-      };
-      html2pdf().set(opt).from(element).save();
-    }
-
-    function downloadConsolidatedPdf() {
-      const fromDate = document.getElementById('pdfFromDate').value;
-      const toDate = document.getElementById('pdfToDate').value;
-
-      if (!fromDate || !toDate) {
-        alert("Please select both 'From Date' and 'To Date'.");
-        return;
-      }
+      const truckVal = document.getElementById('filterTruck').value;
+      const vendorVal = document.getElementById('filterVendor').value;
 
       let filtered = loggedTransactions.filter(t => {
-        if (!t.date) return false;
-        let d = t.date.substring(0, 10);
-        return d >= fromDate && d <= toDate;
+        return (!truckVal || t.truck_id === truckVal) && (!vendorVal || t.vendor_name === vendorVal);
       });
 
       if (filtered.length === 0) {
-        alert(`No logged transactions found between ${fromDate} and ${toDate}.`);
+        alert("Please select a Truck ID or Vendor first to generate PDF.");
         return;
       }
 
-      filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
-
-      const container = document.getElementById('consolidatedPdfContainer');
-      container.innerHTML = '';
+      let first = filtered[0];
+      const grnNumber = first.truck_id || 'GRN_Report';
       const mult = unitMultiplier();
 
-      filtered.forEach((tx, index) => {
-        let pageWrapper = document.createElement('div');
-        pageWrapper.className = index > 0 ? "grn-page-break p-6 bg-white" : "p-6 bg-white";
-        
-        let rowsHtml = '';
-        let totalQtyKg = 0;
-
-        const itemMap = {};
-        tx.items.forEach(i => {
+      // Consolidate identical village reference IDs
+      const itemMap = {};
+      let totalQtyKg = 0;
+      filtered.forEach(t => {
+        t.items.forEach(i => {
           const key = i.ref_number || i.village_id;
           if (!itemMap[key]) {
             itemMap[key] = { ...i, allocated_kg: 0 };
           }
           itemMap[key].allocated_kg += i.allocated_kg;
         });
+      });
 
-        Object.values(itemMap).forEach(i => {
-          totalQtyKg += i.allocated_kg;
+      const allItems = Object.values(itemMap);
+      allItems.forEach(i => totalQtyKg += i.allocated_kg);
+      const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+      // Chunk items into slices of 15 per page max
+      const pageSize = 15;
+      const totalPages = Math.max(1, Math.ceil(allItems.length / pageSize));
+
+      const container = document.getElementById('pdfPrintMultiPageContainer');
+      container.innerHTML = '';
+
+      for (let p = 0; p < totalPages; p++) {
+        const pageItems = allItems.slice(p * pageSize, (p + 1) * pageSize);
+        
+        let rowsHtml = '';
+        pageItems.forEach(i => {
           let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
           rowsHtml += `
             <tr class="border-b border-gray-300">
@@ -1029,24 +998,23 @@
           `;
         });
 
-        let totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+        let pageWrapper = document.createElement('div');
+        pageWrapper.className = p > 0 ? "grn-page-break p-8 bg-white" : "p-8 bg-white";
 
         pageWrapper.innerHTML = `
-          <div class="text-center font-bold text-base tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Pongamia Sourcing Traceability Certificate</div>
+          <div class="text-center font-bold text-lg tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Traceability Sheet</div>
+          
           <div class="border border-gray-800 mb-4 text-xs">
             <div class="flex border-b border-gray-800">
               <div class="w-1/3 p-2 font-bold border-r border-gray-800">Vendor Name</div>
-              <div class="w-2/3 p-2">${tx.vendor_name}</div>
-            </div>
-            <div class="flex border-b border-gray-800">
-              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Truck Arrival ID / GRN</div>
-              <div class="w-2/3 p-2 font-mono font-bold">${tx.truck_id}</div>
+              <div class="w-2/3 p-2">${first.vendor_name}</div>
             </div>
             <div class="flex">
-              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Transaction Date & Place</div>
-              <div class="w-2/3 p-2">${tx.place}, ${tx.date}</div>
+              <div class="w-1/3 p-2 font-bold border-r border-gray-800">Truck Arrival ID / GRN</div>
+              <div class="w-2/3 p-2 font-mono font-bold">${first.truck_id}</div>
             </div>
           </div>
+
           <table class="w-full border-collapse border border-gray-800 text-xs mb-4">
             <thead>
               <tr class="bg-gray-100 border-b border-gray-800">
@@ -1056,7 +1024,9 @@
                 <th class="p-2 text-right">Qty (in ${currentUnit})</th>
               </tr>
             </thead>
-            <tbody>${rowsHtml}</tbody>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
             <tfoot>
               <tr class="border-t border-gray-800 font-bold">
                 <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in ${currentUnit})</td>
@@ -1064,22 +1034,27 @@
               </tr>
             </tfoot>
           </table>
-          <p class="text-[9px] italic text-gray-600 mb-6">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
-          <div class="flex justify-between items-end text-xs pt-2 border-t border-gray-300">
-            <div><p><strong>Date:</strong> ${tx.date}</p></div>
+
+          <p class="text-[10px] italic text-gray-600 mb-8">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
+
+          <div class="flex justify-between items-end text-xs pt-4 border-t border-gray-300">
+            <div>
+              <p><strong>Place, Date:</strong> ${first.place}, ${first.date}</p>
+            </div>
             <div class="text-center">
-              <div class="h-10"></div>
-              <div class="w-44 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
-              <div class="text-[9px] text-gray-500 mt-0.5">Logged By: ${tx.logged_by}</div>
+              <div class="h-12"></div>
+              <div class="w-48 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
+              <div class="text-[10px] text-gray-500 mt-1">Logged By: ${first.logged_by} (Page ${p + 1} of ${totalPages})</div>
             </div>
           </div>
         `;
+
         container.appendChild(pageWrapper);
-      });
+      }
 
       const opt = {
         margin:       [0.4, 0.4, 0.4, 0.4],
-        filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
+        filename:     `${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
