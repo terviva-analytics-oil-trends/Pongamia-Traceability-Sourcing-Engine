@@ -9,7 +9,7 @@
   <style>
     .tab-active { border-bottom: 3px solid #047857; color: #047857; font-weight: bold; }
     @media print { .no-print { display: none !important; } }
-    .grn-page-break { page-break-before: always; }
+    .grn-page-break { page-break-before: always; break-before: page; }
   </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-900">
@@ -81,7 +81,7 @@
         <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
           <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & PDF Reports</h4>
           <ul class="list-disc pl-4 space-y-1 text-[11px]">
-            <li><strong>Independent Filters:</strong> Filter strictly by Truck Arrival ID / GRN OR Vendor Name.</li>
+            <li><strong>Independent Filters:</strong> Filter strictly by GRN Number OR Vendor Name.</li>
             <li><strong>Delete Traceability Sheet:</strong> Click <em>🗑️ Delete Selected Sheet</em> to permanently delete a specific transaction without wiping device cache.</li>
             <li><strong>Strict Page Boundaries:</strong> Table columns are ratio-locked to guarantee `Qty` never gets clipped off on the right margin.</li>
             <li><strong>Consolidated PDF Reports:</strong> Download Date Range or Vendor-Specific combined multi-sheet PDF statements at the bottom of Tab 2. Each GRN starts on a fresh page.</li>
@@ -907,7 +907,6 @@
 
         const txMap = {};
 
-        // Build ledger exclusively from Google Sheets
         rows.forEach(r => {
           const truckId = String(r.Truck_ID || r.truck_id || 'UNKNOWN').toUpperCase();
           if (!txMap[truckId]) {
@@ -1105,15 +1104,15 @@
       alert(`Traceability Sheet '${activeGrnId}' deleted successfully!`);
     }
 
-    // STRICT HORIZONTAL RATIO-LOCKED A4 PAGE BUILDER
+    // STRICT UNIFORM A4 PAGE BUILDER (ZERO MARGIN WASTAGE & NATURAL HEIGHT FLOW)
     function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages) {
       let rowsHtml = '';
       pageItems.forEach(i => {
         let dispQty = (i.allocated_kg * unitMultiplier()).toLocaleString(undefined, {maximumFractionDigits: 2});
         rowsHtml += `
           <tr style="border-bottom: 1px solid #111827;">
-            <td style="border-right: 1px solid #111827; padding: 5px 8px; font-family: monospace; font-size: 12px; font-weight: bold; width: 22%; box-sizing: border-box; word-break: break-word;">${i.ref_number}</td>
-            <td style="border-right: 1px solid #111827; padding: 5px 8px; font-weight: bold; font-size: 12px; width: 38%; box-sizing: border-box; word-break: break-word;">${i.village_name}</td>
+            <td style="border-right: 1px solid #111827; padding: 5px 8px; font-family: monospace; font-size: 12px; font-weight: bold; width: 20%; box-sizing: border-box; word-break: break-word;">${i.ref_number}</td>
+            <td style="border-right: 1px solid #111827; padding: 5px 8px; font-weight: bold; font-size: 12px; width: 40%; box-sizing: border-box; word-break: break-word;">${i.village_name}</td>
             <td style="border-right: 1px solid #111827; padding: 5px 8px; font-size: 12px; font-weight: 500; width: 22%; box-sizing: border-box; word-break: break-word;">${i.block}</td>
             <td style="padding: 5px 8px; text-align: right; font-weight: bold; font-size: 12px; width: 18%; box-sizing: border-box; white-space: nowrap;">${dispQty}</td>
           </tr>
@@ -1121,36 +1120,36 @@
       });
 
       return `
-        <div style="width: 720px; min-height: 1020px; max-height: 1050px; display: flex; flex-direction: column; justify-content: space-between; padding: 28px; box-sizing: border-box; background-color: #ffffff; color: #000000; page-break-after: always; break-after: page; margin: 0 auto 20px auto; border: 1px solid #d1d5db;">
+        <div class="grn-page-break" style="width: 720px; padding: 20px; box-sizing: border-box; background-color: #ffffff; color: #000000; margin: 0 auto; page-break-after: always; break-after: page;">
           <div>
-            <div style="text-align: center; font-weight: bold; font-size: 17px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 14px; text-transform: uppercase;">
+            <div style="text-align: center; font-weight: bold; font-size: 17px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase;">
               Traceability Sheet
             </div>
             
-            <div style="border: 1px solid #111827; margin-bottom: 14px; font-size: 12px;">
+            <div style="border: 1px solid #111827; margin-bottom: 12px; font-size: 12px;">
               <div style="display: flex; border-bottom: 1px solid #111827;">
-                <div style="width: 33.33%; padding: 6px 8px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
-                <div style="width: 66.66%; padding: 6px 8px; font-weight: 600;">${first.vendor_name || '-'}</div>
+                <div style="width: 33.33%; padding: 5px 8px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
+                <div style="width: 66.66%; padding: 5px 8px; font-weight: 600;">${first.vendor_name || '-'}</div>
               </div>
               <div style="display: flex;">
-                <div style="width: 33.33%; padding: 6px 8px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
-                <div style="width: 66.66%; padding: 6px 8px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
+                <div style="width: 33.33%; padding: 5px 8px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
+                <div style="width: 66.66%; padding: 5px 8px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
               </div>
             </div>
 
             <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid #111827; font-size: 12px; margin-bottom: 12px;">
               <colgroup>
-                <col style="width: 22%;">
-                <col style="width: 38%;">
+                <col style="width: 20%;">
+                <col style="width: 40%;">
                 <col style="width: 22%;">
                 <col style="width: 18%;">
               </colgroup>
               <thead>
                 <tr style="background-color: #f3f4f6; border-bottom: 1.5px solid #111827;">
-                  <th style="border-right: 1px solid #111827; padding: 7px; text-align: left; font-size: 12px; width: 22%;">Ref Number</th>
-                  <th style="border-right: 1px solid #111827; padding: 7px; text-align: left; font-size: 12px; width: 38%;">Village Name</th>
-                  <th style="border-right: 1px solid #111827; padding: 7px; text-align: left; font-size: 12px; width: 22%;">Block</th>
-                  <th style="padding: 7px; text-align: right; font-size: 12px; width: 18%;">Qty (in ${currentUnit})</th>
+                  <th style="border-right: 1px solid #111827; padding: 6px; text-align: left; font-size: 12px; width: 20%;">Ref Number</th>
+                  <th style="border-right: 1px solid #111827; padding: 6px; text-align: left; font-size: 12px; width: 40%;">Village Name</th>
+                  <th style="border-right: 1px solid #111827; padding: 6px; text-align: left; font-size: 12px; width: 22%;">Block</th>
+                  <th style="padding: 6px; text-align: right; font-size: 12px; width: 18%;">Qty (in ${currentUnit})</th>
                 </tr>
               </thead>
               <tbody>
@@ -1158,25 +1157,25 @@
               </tbody>
               <tfoot>
                 <tr style="border-top: 2px solid #111827; font-weight: bold; background-color: #ffffff;">
-                  <td colspan="3" style="padding: 7px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase; font-size: 12px;">Total Qty (in ${currentUnit})</td>
-                  <td style="padding: 7px; text-align: right; font-size: 12px; white-space: nowrap;">${totalDisp} ${currentUnit}</td>
+                  <td colspan="3" style="padding: 6px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase; font-size: 12px;">Total Qty (in ${currentUnit})</td>
+                  <td style="padding: 6px; text-align: right; font-size: 12px; white-space: nowrap;">${totalDisp} ${currentUnit}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
           <div>
-            <p style="font-size: 10px; font-style: italic; color: #374151; margin-bottom: 16px;">
+            <p style="font-size: 10px; font-style: italic; color: #374151; margin-top: 10px; margin-bottom: 16px;">
               I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.
             </p>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 10px; border-top: 1px solid #111827;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 10px; border-top: 1px solid #111827; margin-top: 10px;">
               <div>
                 <p style="font-size: 12px;"><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
               </div>
               <div style="text-align: center;">
-                <div style="height: 40px;"></div>
-                <div style="width: 200px; border-top: 1px solid #111827; padding-top: 4px; font-weight: bold; font-size: 12px;">Signature of Vendor</div>
+                <div style="height: 36px;"></div>
+                <div style="width: 180px; border-top: 1px solid #111827; padding-top: 4px; font-weight: bold; font-size: 12px;">Signature of Vendor</div>
                 <div style="font-size: 10px; color: #4b5563; margin-top: 2px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
               </div>
             </div>
@@ -1238,12 +1237,12 @@
       pdfContainer.innerHTML = multiPageHtml;
 
       const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
+        margin:       [0.3, 0.3, 0.3, 0.3],
         filename:     `${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
+        pagebreak:    { mode: ['css', 'legacy'], before: '.grn-page-break' }
       };
 
       try {
@@ -1312,12 +1311,12 @@
       pdfContainer.innerHTML = multiPageHtml;
 
       const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
+        margin:       [0.3, 0.3, 0.3, 0.3],
         filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
+        pagebreak:    { mode: ['css', 'legacy'], before: '.grn-page-break' }
       };
 
       try {
@@ -1380,12 +1379,12 @@
       pdfContainer.innerHTML = multiPageHtml;
 
       const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
+        margin:       [0.3, 0.3, 0.3, 0.3],
         filename:     `Consolidated_Vendor_Report_${selectedVendor.replace(/\s+/g, '_')}_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
+        pagebreak:    { mode: ['css', 'legacy'], before: '.grn-page-break' }
       };
 
       try {
