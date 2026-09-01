@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pongamia Traceability & Sourcing Engine</title>
+  <title>Pongamia Field Procurement & Traceability Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
@@ -13,15 +13,26 @@
 </head>
 <body class="bg-gray-100 font-sans text-gray-900">
 
-  <!-- Header -->
-  <header class="bg-emerald-900 text-white p-4 shadow-md flex justify-between items-center">
+  <!-- Main Header -->
+  <header class="bg-emerald-900 text-white p-4 shadow-md flex justify-between items-center flex-wrap gap-2">
     <div>
-      <h1 class="text-xl font-bold">Pongamia Traceability & Sourcing Engine</h1>
-      <p class="text-xs text-emerald-200">Standalone Field PWA (Reference Tracking & Multi-Device Sync)</p>
+      <h1 class="text-xl font-bold">Pongamia Field Procurement & Traceability Engine</h1>
+      <p class="text-xs text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka</p>
     </div>
     <div class="flex items-center space-x-3">
-      <span class="bg-emerald-800 text-xs px-3 py-1 rounded text-emerald-100">Unit: KG</span>
-      <button onclick="clearAllLogs()" class="bg-red-700 hover:bg-red-800 text-xs px-3 py-1 rounded text-white">Clear Local Cache</button>
+      <!-- Unit Selection -->
+      <div class="flex items-center bg-emerald-800 px-2 py-1 rounded text-xs space-x-1">
+        <label for="unitSelect" class="font-medium text-emerald-100">Unit:</label>
+        <select id="unitSelect" onchange="changeUnit(this.value)" class="bg-emerald-950 text-white font-bold px-2 py-0.5 rounded border border-emerald-600 focus:outline-none">
+          <option value="KG" selected>KG</option>
+          <option value="MT">MT (Metric Tonnes)</option>
+        </select>
+      </div>
+
+      <button onclick="fetchCloudLedger()" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-3 py-1.5 rounded text-white font-bold flex items-center space-x-1">
+        <span>🔄 Sync Team GRNs</span>
+      </button>
+      <button onclick="clearAllLogs()" class="bg-red-700 hover:bg-red-800 text-xs px-2.5 py-1.5 rounded text-white">Clear Cache</button>
     </div>
   </header>
 
@@ -39,9 +50,27 @@
     <!-- TAB 1: LOG SOURCING TRANSACTION -->
     <section id="sec-log" class="space-y-6">
       
+      <!-- System How It Works Collapsible Dropdown -->
+      <details class="bg-emerald-50 border border-emerald-300 rounded-lg p-3 text-xs text-emerald-950 shadow-sm">
+        <summary class="font-bold cursor-pointer text-sm text-emerald-900 flex items-center justify-between">
+          <span>ℹ️ How This System Works (Field Sourcing & Traceability Workflow)</span>
+          <span class="text-xs text-emerald-700 font-normal">Click to Expand / Collapse</span>
+        </summary>
+        <div class="mt-3 space-y-2 border-t border-emerald-200 pt-2 leading-relaxed">
+          <p><strong>Step 1 (Master Setup):</strong> Load your deduplicated survey CSV file. System calculates village yield limits (&nbsp;Trees &times; 3 kg&nbsp;). Change unit between <strong>KG</strong> and <strong>MT</strong> at top right as needed.</p>
+          <p><strong>Step 2 (Transaction Header):</strong> Enter Vendor Name, Truck Arrival ID / GRN, Total Procured Weight, Date, Location, and Supervisor Name.</p>
+          <p><strong>Step 3 (Proximity Lookup):</strong> Enter Vendor / Town Latitude & Longitude, adjust radius slider (1 to 100 km), and click <em>Find Villages in Radius</em>.</p>
+          <p><strong>Step 4 (Flexible Allocation):</strong> 
+            Allocate weights to nearby villages using either <strong>Add (individual village)</strong> or type quantities across multiple villages and click <strong>⚡ Add All Entered</strong> at once.
+          </p>
+          <p><strong>Step 5 (10% Soft Cap & Live Balance):</strong> A +10% negative deviation soft cap allows minor operational variance without blocking entries. If total assigned weight exceeds procurement, the balance indicator turns <span class="text-red-600 font-bold">RED</span>.</p>
+          <p><strong>Step 6 (Save & Cloud Sync):</strong> Click <em>Save Transaction</em> at the top or bottom of the table to instantly append data to your central Google Sheet across all supervisors' devices.</p>
+        </div>
+      </details>
+
       <!-- Master Upload & Yield Setting -->
       <div class="bg-white p-4 rounded-lg shadow space-y-3">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase">Master Dataset & Yield Settings</h2>
+        <h2 class="text-sm font-semibold text-gray-700 uppercase">Master Dataset Setup</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-medium text-gray-600">Select Master CSV</label>
@@ -52,7 +81,7 @@
             <input type="number" id="yieldFactor" value="3" onchange="recalculateCapacities()" class="mt-1 border rounded p-1 text-sm w-full">
           </div>
           <div class="flex items-end">
-            <span id="masterStatus" class="text-xs text-emerald-700 font-medium">Ready for master data input.</span>
+            <span id="masterStatus" class="text-xs text-emerald-700 font-medium">Ready for CSV input.</span>
           </div>
         </div>
       </div>
@@ -70,7 +99,7 @@
             <input type="text" id="txTruck" placeholder="e.g. TAKA001" class="border rounded p-2 text-sm w-full">
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-600">Total Procured Qty (kg)</label>
+            <label class="block text-xs font-medium text-gray-600">Total Procured Qty (<span class="unitLbl">KG</span>)</label>
             <input type="number" id="txTotalQty" placeholder="10000" oninput="updateAllocationCounter()" class="border rounded p-2 text-sm w-full bg-yellow-50 font-bold">
           </div>
           <div>
@@ -82,19 +111,19 @@
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600">Logged By (Staff)</label>
-            <input type="text" id="txLoggedBy" placeholder="Chethan" class="border rounded p-2 text-sm w-full">
+            <input type="text" id="txLoggedBy" placeholder="Chethan H C" class="border rounded p-2 text-sm w-full">
           </div>
         </div>
 
-        <!-- Dynamic Counter -->
-        <div class="bg-slate-900 text-white p-3 rounded-lg flex justify-between items-center">
+        <!-- Dynamic Counter Banner -->
+        <div id="counterBanner" class="bg-slate-900 text-white p-3 rounded-lg flex justify-between items-center transition-colors duration-300">
           <div>
             <span class="text-xs text-gray-400 block">TRANSACTION ALLOCATION COUNTER</span>
-            <span class="text-lg font-bold">Total Procured: <span id="cntTotal">0</span> kg</span>
+            <span class="text-lg font-bold">Total Procured: <span id="cntTotal">0</span> <span class="unitLbl">KG</span></span>
           </div>
           <div class="text-right">
             <span class="text-xs text-gray-400 block">UNALLOCATED BALANCE TO ASSIGN</span>
-            <span class="text-xl font-extrabold text-emerald-400" id="cntUnallocated">0 kg</span>
+            <span class="text-xl font-extrabold text-emerald-400" id="cntUnallocated">0 <span class="unitLbl">KG</span></span>
           </div>
         </div>
       </div>
@@ -127,44 +156,78 @@
         </div>
       </div>
 
-      <!-- Nearby Village Capacity Allocation Table -->
+      <!-- Nearby Village Capacity Table -->
       <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="p-3 bg-gray-50 border-b flex justify-between items-center">
-          <h3 class="text-sm font-bold text-gray-700">Nearby Villages & Capacity Caps</h3>
-          <span id="resultCount" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">0 Villages Found</span>
+        <div class="p-3 bg-gray-100 border-b flex flex-wrap justify-between items-center gap-2">
+          <div class="flex items-center space-x-3">
+            <h3 class="text-sm font-bold text-gray-800">Nearby Villages & Capacity Caps</h3>
+            <span id="tableUnallocatedBadge" class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800">
+              Unallocated: <span id="tblUnallocVal">0</span> <span class="unitLbl">KG</span>
+            </span>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button onclick="addAllEnteredQuantities()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+              <span>⚡ Add All Entered</span>
+            </button>
+            <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+              <span>💾 Save & Sync Transaction</span>
+            </button>
+            <span id="resultCount" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">0 Villages Found</span>
+          </div>
         </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-gray-100 text-gray-600 uppercase border-b">
+            <thead class="bg-gray-50 text-gray-600 uppercase border-b">
               <tr>
                 <th class="p-2">Village Name</th>
                 <th class="p-2">Ref No</th>
                 <th class="p-2">District / Block / GP</th>
                 <th class="p-2">Status</th>
                 <th class="p-2">Distance</th>
-                <th class="p-2">Max Cap (kg)</th>
+                <th class="p-2">Max Cap (<span class="unitLbl">KG</span>)</th>
                 <th class="p-2">Max Permitted (+10%)</th>
-                <th class="p-2">Sourced (kg)</th>
-                <th class="p-2">Remaining (kg)</th>
-                <th class="p-2">Allocate Qty (kg)</th>
+                <th class="p-2">Sourced (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2">Remaining (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2">Allocate Qty (<span class="unitLbl">KG</span>)</th>
               </tr>
             </thead>
             <tbody id="villageTableBody" class="divide-y divide-gray-200">
-              <tr><td colspan="10" class="p-4 text-center text-gray-400">Load Master CSV data and search radius to view villages.</td></tr>
+              <tr><td colspan="10" class="p-4 text-center text-gray-400">Load Master CSV data to begin allocation.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
+      <!-- Bottom Save Button -->
       <div class="flex justify-end">
-        <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-lg font-bold shadow text-sm">Save Transaction & Log Sourcing</button>
+        <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-lg font-bold shadow text-sm">Save Transaction & Sync to Cloud</button>
       </div>
     </section>
 
     <!-- TAB 2: TRACEABILITY SEARCH & AUDIT (PDF EXPORT) -->
     <section id="sec-search" class="hidden space-y-6">
+      
+      <!-- Tab 2 Specific How It Works -->
+      <details class="bg-blue-50 border border-blue-300 rounded-lg p-3 text-xs text-blue-950 shadow-sm">
+        <summary class="font-bold cursor-pointer text-sm text-blue-900 flex items-center justify-between">
+          <span>ℹ️ How Tab 2 (Traceability Audit & PDF Generation) Works</span>
+          <span class="text-xs text-blue-700 font-normal">Click to Expand / Collapse</span>
+        </summary>
+        <div class="mt-3 space-y-2 border-t border-blue-200 pt-2 leading-relaxed">
+          <p><strong>1. Search & Filter:</strong> Select a <strong>Truck Arrival ID / GRN</strong> or <strong>Vendor Name</strong> from the dropdown menu to immediately view all associated village allocations.</p>
+          <p><strong>2. Printable A4 Layout (15 Lines Max per Page):</strong> The generated certificate strictly formats data into standard A4 document layout. If a transaction contains more than 15 villages, it automatically breaks across multiple pages cleanly.</p>
+          <p><strong>3. Vendor Signature & Supervisor Logging:</strong> Form includes a clean Vendor Signature line alongside supervisor logging details at the bottom of the page.</p>
+          <p><strong>4. Export Options:</strong> Click <em>Download A4 PDF Certificate</em> for official audit compliance or <em>Export All Logged Data (CSV)</em> to download the entire consolidated dataset in selected units (<span class="unitLbl">KG</span> / MT).</p>
+        </div>
+      </details>
+
       <div class="bg-white p-4 rounded-lg shadow space-y-3 no-print">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability Search</h2>
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability Search</h2>
+          <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team GRNs from Cloud</button>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs text-gray-600">Filter by Truck Arrival ID / GRN</label>
@@ -202,7 +265,7 @@
               <th class="border-r border-gray-800 p-2 text-left">Ref Number</th>
               <th class="border-r border-gray-800 p-2 text-left">Village Name</th>
               <th class="border-r border-gray-800 p-2 text-left">Block</th>
-              <th class="p-2 text-right">Qty (in kg)</th>
+              <th class="p-2 text-right">Qty (in <span class="unitLbl">KG</span>)</th>
             </tr>
           </thead>
           <tbody id="pdfTableBody">
@@ -210,7 +273,7 @@
           </tbody>
           <tfoot>
             <tr class="border-t border-gray-800 font-bold">
-              <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in kgs)</td>
+              <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in <span class="unitLbl">KG</span>)</td>
               <td class="p-2 text-right" id="pdfTotalQty">0</td>
             </tr>
           </tfoot>
@@ -218,14 +281,13 @@
 
         <p class="text-[10px] italic text-gray-600 mb-8">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
 
+        <!-- Clean Signature Block without Image Placeholder Watermark -->
         <div class="flex justify-between items-end text-xs pt-4 border-t border-gray-300">
           <div>
             <p><strong>Place, Date:</strong> <span id="pdfPlaceDate">-</span></p>
           </div>
           <div class="text-center">
-            <div class="h-12 flex items-center justify-center">
-              <span class="text-gray-400 italic text-[10px]">[Vendor Signature Image]</span>
-            </div>
+            <div class="h-12"></div>
             <div class="w-48 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
             <div class="text-[10px] text-gray-500 mt-1">Logged By: <span id="pdfLoggedBy">-</span></div>
           </div>
@@ -237,29 +299,49 @@
     <section id="sec-sync" class="hidden space-y-4">
       <div class="bg-white p-6 rounded-lg shadow space-y-4">
         <h2 class="text-sm font-semibold text-gray-700 uppercase">Multi-Device Real-Time Synchronization Setup</h2>
-        <p class="text-xs text-gray-600">Paste your deployed Google Apps Script Webhook URL below to automatically sync offline allocations across all supervisors in real time.</p>
+        <p class="text-xs text-gray-600">Paste your deployed Google Apps Script Webhook URL below to sync offline allocations across all supervisors in real time.</p>
         <div>
           <label class="block text-xs font-medium text-gray-600">Google Apps Script Webhook URL</label>
           <input type="url" id="webhookUrl" placeholder="https://script.google.com/macros/s/.../exec" class="border rounded p-2 text-sm w-full mt-1">
         </div>
         <div class="flex space-x-3">
           <button onclick="saveWebhookUrl()" class="bg-emerald-700 text-white text-xs px-4 py-2 rounded font-bold">Save Webhook URL</button>
-          <button onclick="syncWithCloud()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded font-bold">Sync All Logged Entries Now</button>
+          <button onclick="fetchCloudLedger()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded font-bold">Pull All Cloud Data Now</button>
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- JavaScript Engine -->
   <script>
     let masterVillages = [];
     let loggedTransactions = JSON.parse(localStorage.getItem('pongamia_logs') || '[]');
     let currentFilteredVillages = [];
+    let activeTxItems = [];
+    let currentUnit = 'KG';
 
-    // Set default date
-    document.getElementById('txDate').valueToDate = new Date();
-    document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedWebhook = localStorage.getItem('pongamia_webhook');
+      if (savedWebhook) {
+        document.getElementById('webhookUrl').value = savedWebhook;
+        fetchCloudLedger();
+      }
+      document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
+    });
+
+    function changeUnit(unit) {
+      currentUnit = unit;
+      document.querySelectorAll('.unitLbl').forEach(el => el.innerText = unit);
+      renderVillageTable();
+      updateAllocationCounter();
+      if (!document.getElementById('sec-search').classList.contains('hidden')) {
+        renderTraceabilitySheet();
+      }
+    }
+
+    function unitMultiplier() {
+      return currentUnit === 'MT' ? 0.001 : 1.0;
+    }
 
     function switchTab(tab) {
       document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
@@ -284,10 +366,7 @@
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e) {
-        const text = e.target.result;
-        parseCsvData(text);
-      };
+      reader.onload = function(e) { parseCsvData(e.target.result); };
       reader.readAsText(file);
     }
 
@@ -306,11 +385,12 @@
         headers.forEach((h, idx) => { v[h] = cols[idx]; });
 
         let estTrees = parseFloat(v['Estimated Trees']) || 0;
-        let maxCap = estTrees * yieldFactor;
-        let sourced = parseFloat(v['Sourced So Far (kg)']) || getSourcedFromLogs(v['Reference Number'] || v['Village_ID']);
+        let maxCapKg = estTrees * yieldFactor;
+        let refNo = v['Reference Number'] || ('fm' + Math.random().toString(36).substring(2,8));
+        let sourcedKg = getSourcedFromLogs(refNo);
 
         masterVillages.push({
-          ref_number: v['Reference Number'] || ('fm' + Math.random().toString(36).substring(2,8)),
+          ref_number: refNo,
           village_id: v['Village_ID'] || (v['District'] + '_' + v['Village Name']),
           village_name: v['Village Name'],
           district: v['District'],
@@ -320,20 +400,22 @@
           lat: parseFloat(v['Latitude']),
           lng: parseFloat(v['Longitude']),
           est_trees: estTrees,
-          max_cap: maxCap,
-          sourced: sourced,
-          remaining: maxCap - sourced
+          max_cap_kg: maxCapKg,
+          sourced_kg: sourcedKg,
+          remaining_kg: maxCapKg - sourcedKg
         });
       }
-      document.getElementById('masterStatus').innerText = `Successfully loaded ${masterVillages.length} master villages! (Yield: ${yieldFactor} kg/tree)`;
+      document.getElementById('masterStatus').innerText = `Loaded ${masterVillages.length} master villages!`;
     }
 
     function getSourcedFromLogs(ref) {
       let total = 0;
       loggedTransactions.forEach(t => {
-        t.items.forEach(i => {
-          if (i.ref_number === ref) total += parseFloat(i.allocated_kg || 0);
-        });
+        if (t.items && Array.isArray(t.items)) {
+          t.items.forEach(i => {
+            if (i.ref_number === ref) total += parseFloat(i.allocated_kg || 0);
+          });
+        }
       });
       return total;
     }
@@ -378,9 +460,14 @@
         return;
       }
 
+      const mult = unitMultiplier();
+
       currentFilteredVillages.forEach((v, idx) => {
-        let maxPermitted = (v.max_cap * 1.10).toFixed(0);
-        let rem = Math.max(0, v.remaining).toFixed(0);
+        let maxCapDisp = (v.max_cap_kg * mult).toFixed(2);
+        let maxPermittedDisp = ((v.max_cap_kg * 1.10) * mult).toFixed(2);
+        let sourcedDisp = (v.sourced_kg * mult).toFixed(2);
+        let remDisp = Math.max(0, (v.remaining_kg * mult)).toFixed(2);
+
         let tr = document.createElement('tr');
         tr.className = "hover:bg-gray-50";
         tr.innerHTML = `
@@ -389,14 +476,14 @@
           <td class="p-2 text-gray-600">${v.district} / ${v.block} / ${v.gp}</td>
           <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] ${v.status.includes('Audit') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">${v.status}</span></td>
           <td class="p-2 font-semibold">${v.dist.toFixed(2)} km</td>
-          <td class="p-2 font-bold">${v.max_cap.toFixed(0)} kg</td>
-          <td class="p-2 text-purple-700 font-bold">${maxPermitted} kg</td>
-          <td class="p-2 text-amber-700">${v.sourced.toFixed(0)} kg</td>
-          <td class="p-2 text-emerald-700 font-extrabold">${rem} kg</td>
+          <td class="p-2 font-bold">${maxCapDisp} ${currentUnit}</td>
+          <td class="p-2 text-purple-700 font-bold">${maxPermittedDisp} ${currentUnit}</td>
+          <td class="p-2 text-amber-700">${sourcedDisp} ${currentUnit}</td>
+          <td class="p-2 text-emerald-700 font-extrabold">${remDisp} ${currentUnit}</td>
           <td class="p-2">
             <div class="flex space-x-1">
-              <input type="number" id="alloc_${idx}" placeholder="kg" class="border rounded p-1 w-20 text-xs">
-              <button onclick="allocateVillage(${idx})" class="bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold">Add</button>
+              <input type="number" step="any" id="alloc_${idx}" placeholder="${currentUnit}" class="border rounded p-1 w-20 text-xs">
+              <button onclick="allocateVillage(${idx})" class="bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold hover:bg-emerald-800">Add</button>
             </div>
           </td>
         `;
@@ -404,22 +491,21 @@
       });
     }
 
-    let activeTxItems = [];
-
     function allocateVillage(idx) {
       const v = currentFilteredVillages[idx];
       const valInput = document.getElementById(`alloc_${idx}`);
-      const val = parseFloat(valInput.value);
+      const valEntered = parseFloat(valInput.value);
 
-      if (isNaN(val) || val <= 0) {
+      if (isNaN(valEntered) || valEntered <= 0) {
         alert("Enter a valid weight to allocate.");
         return;
       }
 
-      // Soft cap validation (10% negative deviation allowed)
-      const maxPermitted = v.max_cap * 1.10;
-      if ((v.sourced + val) > maxPermitted) {
-        const confirmExceed = confirm(`Allocation (${val} kg) exceeds max permitted (+10% limit: ${maxPermitted.toFixed(0)} kg).\n\nAllow 10% soft deviation entry?`);
+      const valKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
+      const maxPermittedKg = v.max_cap_kg * 1.10;
+
+      if ((v.sourced_kg + valKg) > maxPermittedKg) {
+        const confirmExceed = confirm(`Allocation exceeds max permitted (+10% limit: ${(maxPermittedKg * unitMultiplier()).toFixed(2)} ${currentUnit}).\n\nAllow soft deviation entry?`);
         if (!confirmExceed) return;
       }
 
@@ -428,35 +514,88 @@
         village_id: v.village_id,
         village_name: v.village_name,
         block: v.block,
-        allocated_kg: val
+        allocated_kg: valKg
       });
 
-      // Update remaining locally
-      v.sourced += val;
-      v.remaining = v.max_cap - v.sourced;
+      v.sourced_kg += valKg;
+      v.remaining_kg = v.max_cap_kg - v.sourced_kg;
       valInput.value = '';
       renderVillageTable();
       updateAllocationCounter();
     }
 
-    function updateAllocationCounter() {
-      const totalProcured = parseFloat(document.getElementById('txTotalQty').value) || 0;
-      let allocatedSum = activeTxItems.reduce((acc, item) => acc + item.allocated_kg, 0);
-      let unallocated = totalProcured - allocatedSum;
+    function addAllEnteredQuantities() {
+      let addedCount = 0;
+      currentFilteredVillages.forEach((v, idx) => {
+        const valInput = document.getElementById(`alloc_${idx}`);
+        if (valInput && valInput.value) {
+          const valEntered = parseFloat(valInput.value);
+          if (!isNaN(valEntered) && valEntered > 0) {
+            const valKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
+            activeTxItems.push({
+              ref_number: v.ref_number,
+              village_id: v.village_id,
+              village_name: v.village_name,
+              block: v.block,
+              allocated_kg: valKg
+            });
+            v.sourced_kg += valKg;
+            v.remaining_kg = v.max_cap_kg - v.sourced_kg;
+            valInput.value = '';
+            addedCount++;
+          }
+        }
+      });
 
-      document.getElementById('cntTotal').innerText = totalProcured.toLocaleString();
-      document.getElementById('cntUnallocated').innerText = unallocated.toLocaleString() + ' kg';
+      if (addedCount > 0) {
+        renderVillageTable();
+        updateAllocationCounter();
+        alert(`Successfully added allocations for ${addedCount} villages!`);
+      } else {
+        alert("No quantities were entered in the table fields.");
+      }
+    }
+
+    function updateAllocationCounter() {
+      const totalEntered = parseFloat(document.getElementById('txTotalQty').value) || 0;
+      const totalProcuredKg = currentUnit === 'MT' ? totalEntered * 1000 : totalEntered;
+      let allocatedSumKg = activeTxItems.reduce((acc, item) => acc + item.allocated_kg, 0);
+      let unallocatedKg = totalProcuredKg - allocatedSumKg;
+
+      const mult = unitMultiplier();
+      const dispTotal = (totalProcuredKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+      const dispUnalloc = (unallocatedKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+      document.getElementById('cntTotal').innerText = dispTotal;
+      document.getElementById('cntUnallocated').innerText = `${dispUnalloc} ${currentUnit}`;
+      document.getElementById('tblUnallocVal').innerText = dispUnalloc;
+
+      const banner = document.getElementById('counterBanner');
+      const badge = document.getElementById('tableUnallocatedBadge');
+      const unallocText = document.getElementById('cntUnallocated');
+
+      if (unallocatedKg < 0) {
+        banner.className = "bg-red-900 text-white p-3 rounded-lg flex justify-between items-center transition-colors duration-300 animate-pulse";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-red-600 text-white animate-pulse";
+        unallocText.className = "text-xl font-extrabold text-red-200";
+      } else {
+        banner.className = "bg-slate-900 text-white p-3 rounded-lg flex justify-between items-center transition-colors duration-300";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800";
+        unallocText.className = "text-xl font-extrabold text-emerald-400";
+      }
     }
 
     function saveCurrentTransaction() {
       const vendor = document.getElementById('txVendor').value;
       const truck = document.getElementById('txTruck').value;
-      const total = parseFloat(document.getElementById('txTotalQty').value);
+      const totalEntered = parseFloat(document.getElementById('txTotalQty').value);
 
-      if (!vendor || !truck || isNaN(total) || activeTxItems.length === 0) {
+      if (!vendor || !truck || isNaN(totalEntered) || activeTxItems.length === 0) {
         alert("Please complete Vendor Name, Truck ID, Total Quantity, and add at least one village allocation.");
         return;
       }
+
+      const totalProcuredKg = currentUnit === 'MT' ? totalEntered * 1000 : totalEntered;
 
       const txObj = {
         id: 'TX_' + Date.now(),
@@ -464,20 +603,62 @@
         place: document.getElementById('txPlace').value,
         vendor_name: vendor,
         truck_id: truck,
-        logged_by: document.getElementById('txLoggedBy').value,
-        total_kg: total,
+        logged_by: document.getElementById('txLoggedBy').value || 'Chethan H C',
+        total_kg: totalProcuredKg,
         items: [...activeTxItems]
       };
 
       loggedTransactions.push(txObj);
       localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
       
-      // Post to webhook if configured
       syncSingleTransactionToCloud(txObj);
 
-      alert("Transaction successfully logged!");
+      alert("Transaction saved and synced to cloud!");
       activeTxItems = [];
       updateAllocationCounter();
+    }
+
+    async function fetchCloudLedger() {
+      const url = localStorage.getItem('pongamia_webhook');
+      if (!url) return;
+
+      try {
+        const res = await fetch(url);
+        const rows = await res.json();
+        if (!Array.isArray(rows)) return;
+
+        const txMap = {};
+        rows.forEach(r => {
+          const truckId = r.Truck_ID || r.truck_id || 'UNKNOWN';
+          if (!txMap[truckId]) {
+            txMap[truckId] = {
+              id: truckId,
+              date: String(r.Date || r.date || '').substring(0, 10),
+              place: r.Place || r.place || '',
+              vendor_name: r.Vendor_Name || r.vendor_name || '',
+              truck_id: truckId,
+              logged_by: r.Logged_By || r.logged_by || '',
+              total_kg: 0,
+              items: []
+            };
+          }
+          const qty = parseFloat(r.Allocated_Qty_kg || r.allocated_kg || 0);
+          txMap[truckId].total_kg += qty;
+          txMap[truckId].items.push({
+            ref_number: r.Ref_Number || r.ref_number || '',
+            village_id: r.Village_ID || r.village_id || '',
+            village_name: r.Village_Name || r.village_name || '',
+            block: r.Block || r.block || '',
+            allocated_kg: qty
+          });
+        });
+
+        loggedTransactions = Object.values(txMap);
+        localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+        populateSearchDropdowns();
+      } catch (e) {
+        console.error("Cloud fetch error:", e);
+      }
     }
 
     function populateSearchDropdowns() {
@@ -512,31 +693,33 @@
 
       const tbody = document.getElementById('pdfTableBody');
       tbody.innerHTML = '';
-      let grantTotal = 0;
+      let grantTotalKg = 0;
+      const mult = unitMultiplier();
 
       filtered.forEach(t => {
         t.items.forEach(i => {
-          grantTotal += i.allocated_kg;
+          grantTotalKg += i.allocated_kg;
+          let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
           let tr = document.createElement('tr');
           tr.className = "border-b border-gray-300";
           tr.innerHTML = `
             <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
             <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
             <td class="border-r border-gray-800 p-2">${i.block}</td>
-            <td class="p-2 text-right font-bold">${i.allocated_kg.toLocaleString()}</td>
+            <td class="p-2 text-right font-bold">${dispQty}</td>
           `;
           tbody.appendChild(tr);
         });
       });
 
-      document.getElementById('pdfTotalQty').innerText = grantTotal.toLocaleString() + ' kg';
+      document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
     }
 
     function exportToPdf() {
       const element = document.getElementById('pdfContainer');
       const opt = {
         margin:       [0.4, 0.4, 0.4, 0.4],
-        filename:     'Traceability_Sheet.pdf',
+        filename:     `Traceability_Sheet_${currentUnit}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
@@ -546,22 +729,25 @@
     }
 
     function exportLoggedCsv() {
-      let csv = "Date,Place,Vendor_Name,Truck_ID,Logged_By,Ref_Number,Village_Name,Block,Allocated_Qty_kg\n";
+      const mult = unitMultiplier();
+      let csv = `Date,Place,Vendor_Name,Truck_ID,Logged_By,Ref_Number,Village_Name,Block,Allocated_Qty_${currentUnit}\n`;
       loggedTransactions.forEach(t => {
         t.items.forEach(i => {
-          csv += `"${t.date}","${t.place}","${t.vendor_name}","${t.truck_id}","${t.logged_by}","${i.ref_number}","${i.village_name}","${i.block}",${i.allocated_kg}\n`;
+          let dispQty = (i.allocated_kg * mult).toFixed(2);
+          csv += `"${t.date}","${t.place}","${t.vendor_name}","${t.truck_id}","${t.logged_by}","${i.ref_number}","${i.village_name}","${i.block}",${dispQty}\n`;
         });
       });
       const blob = new Blob([csv], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'All_Logged_Traceability_Data.csv';
+      a.download = `All_Logged_Traceability_Data_${currentUnit}.csv`;
       a.click();
     }
 
     function saveWebhookUrl() {
       const url = document.getElementById('webhookUrl').value;
       localStorage.setItem('pongamia_webhook', url);
+      fetchCloudLedger();
       alert("Cloud Sync Webhook saved!");
     }
 
@@ -576,18 +762,13 @@
       });
     }
 
-    function syncWithCloud() {
-      const url = localStorage.getItem('pongamia_webhook');
-      if (!url) { alert("Configure Webhook URL first."); return; }
-      loggedTransactions.forEach(tx => syncSingleTransactionToCloud(tx));
-      alert("All local transactions dispatched to cloud sheet!");
-    }
-
     function clearAllLogs() {
-      if (confirm("Are you sure you want to clear all locally saved logs?")) {
+      const confirmClear = confirm("⚠️ WARNING: You are about to clear all locally saved transaction logs on this device.\n\nData saved on the Google Sheet will NOT be affected.\n\nDo you really want to clear local cache?");
+      if (confirmClear) {
         localStorage.removeItem('pongamia_logs');
         loggedTransactions = [];
-        alert("Cache cleared.");
+        alert("Local cache cleared successfully.");
+        location.reload();
       }
     }
   </script>
